@@ -1,0 +1,828 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Painel do Operador — Sistema de Detecção</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --void:#0A0E0D;
+    --panel:#141A18;
+    --panel-raised:#1C2422;
+    --line:#283330;
+    --line-soft:#1F2825;
+    --text:#EAF0EC;
+    --text-dim:#8B978F;
+    --text-faint:#5B655F;
+    --green:#4ED97F;
+    --green-dim:#1C3A28;
+    --amber:#F5B942;
+    --amber-dim:#3D3013;
+    --red:#FF5C4D;
+    --red-dim:#3D1712;
+    --blue:#57A8E8;
+    --mono: 'IBM Plex Mono', monospace;
+    --sans: 'IBM Plex Sans', sans-serif;
+  }
+
+  *{margin:0;padding:0;box-sizing:border-box;}
+
+  html,body{
+    height:100%;
+    background:var(--void);
+    color:var(--text);
+    font-family:var(--sans);
+    overflow:hidden;
+  }
+
+  .rig{
+    display:flex;
+    flex-direction:column;
+    height:100vh;
+    width:100vw;
+  }
+
+  /* ---------- TOP RIBBON ---------- */
+  .ribbon{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:0 20px;
+    height:44px;
+    background:var(--panel);
+    border-bottom:1px solid var(--line);
+    flex-shrink:0;
+  }
+  .ribbon .brand{
+    font-family:var(--mono);
+    font-size:12px;
+    letter-spacing:0.14em;
+    color:var(--text-dim);
+    text-transform:uppercase;
+  }
+  .ribbon .brand b{color:var(--text); font-weight:600;}
+  .status-cluster{display:flex; gap:18px; align-items:center;}
+  .status-chip{
+    display:flex; align-items:center; gap:7px;
+    font-family:var(--mono); font-size:11.5px; color:var(--text-dim);
+    letter-spacing:0.03em;
+  }
+  .dot{width:7px;height:7px;border-radius:50%; background:var(--green); flex-shrink:0;}
+  .dot.off{background:var(--red); box-shadow:0 0 0 0 rgba(255,92,77,.5); animation:pulseDot 1.4s infinite;}
+  @keyframes pulseDot{
+    0%{box-shadow:0 0 0 0 rgba(255,92,77,.55);}
+    70%{box-shadow:0 0 0 6px rgba(255,92,77,0);}
+    100%{box-shadow:0 0 0 0 rgba(255,92,77,0);}
+  }
+  .clock{font-family:var(--mono); font-size:12px; color:var(--text-faint);}
+
+  /* ---------- MAIN GRID ---------- */
+  .main{
+    flex:1;
+    display:grid;
+    grid-template-columns: 1fr 320px;
+    gap:1px;
+    background:var(--line);
+    overflow:hidden;
+    min-height:0;
+  }
+
+  /* ---------- CAMERA PANEL ---------- */
+  .camera-panel{
+    position:relative;
+    background:#05100C;
+    display:flex;
+    flex-direction:column;
+    min-height:0;
+  }
+  .camera-view{
+    flex:1;
+    position:relative;
+    background:
+      radial-gradient(ellipse at 50% 30%, #0F2620 0%, #060D0A 72%);
+    overflow:hidden;
+  }
+  .camera-view::before{
+    content:"";
+    position:absolute; inset:0;
+    background-image:
+      repeating-linear-gradient(0deg, rgba(255,255,255,0.025) 0px, rgba(255,255,255,0.025) 1px, transparent 1px, transparent 3px);
+    pointer-events:none;
+    opacity:.5;
+  }
+  .treeline{
+    position:absolute; bottom:0; left:0; right:0; height:46%;
+    background:
+      linear-gradient(to top, #08130E 0%, transparent 100%);
+  }
+  .treeline svg{position:absolute; bottom:-4px; width:100%; height:100%; opacity:.85;}
+
+  .cam-img{
+    position:absolute; inset:0;
+    width:100%; height:100%;
+    object-fit:cover;
+    z-index:1;
+  }
+
+  .rec-chip{
+    position:absolute; top:16px; left:16px;
+    display:flex; align-items:center; gap:7px;
+    font-family:var(--mono); font-size:11px; letter-spacing:.08em;
+    color:var(--red); background:rgba(10,14,13,0.65); padding:5px 10px 5px 8px;
+    border-radius:3px; border:1px solid rgba(255,92,77,.25);
+    z-index:3;
+  }
+  .rec-chip .reddot{width:6px;height:6px;border-radius:50%;background:var(--red); animation:pulseDot 1.2s infinite;}
+
+  .cam-label{
+    position:absolute; top:16px; right:16px;
+    font-family:var(--mono); font-size:11px; color:var(--text-dim);
+    background:rgba(10,14,13,0.65); padding:5px 10px; border-radius:3px;
+    border:1px solid var(--line); z-index:3;
+    letter-spacing:.05em;
+  }
+
+  .detect-box{
+    position:absolute;
+    border:2px solid var(--amber);
+    border-radius:2px;
+    box-shadow:0 0 0 3000px rgba(0,0,0,0) inset;
+    transition:opacity .25s ease, border-color .25s ease;
+    z-index:2;
+  }
+  .detect-box::before{
+    content: attr(data-label);
+    position:absolute; top:-22px; left:-2px;
+    font-family:var(--mono); font-size:10.5px; font-weight:600;
+    color:var(--panel); background:var(--amber);
+    padding:2px 6px; border-radius:2px; white-space:nowrap;
+    letter-spacing:.03em;
+  }
+  .detect-box.confirmed{border-color:var(--green);}
+  .detect-box.confirmed::before{background:var(--green); color:#062412;}
+  .detect-box.unidentified{border-color:var(--red); animation:none;}
+  .detect-box.unidentified::before{background:var(--red); color:#3d0d07;}
+  .detect-box.hidden{opacity:0; pointer-events:none;}
+
+  .cam-caption{
+    height:34px; flex-shrink:0;
+    background:var(--panel);
+    border-top:1px solid var(--line);
+    display:flex; align-items:center; padding:0 14px;
+    font-family:var(--mono); font-size:11.5px; color:var(--text-dim);
+    letter-spacing:.02em;
+    gap:8px;
+  }
+  .cam-caption b{color:var(--text); font-weight:600;}
+
+  /* ---------- SIDE COLUMN ---------- */
+  .side{
+    display:flex; flex-direction:column;
+    background:var(--panel);
+    min-height:0;
+    overflow-y:auto;
+  }
+
+  .panel-block{
+    padding:14px 16px 16px;
+    border-bottom:1px solid var(--line);
+  }
+  .panel-title{
+    font-family:var(--mono); font-size:10.5px; letter-spacing:.12em;
+    color:var(--text-faint); text-transform:uppercase; margin-bottom:10px;
+  }
+
+  /* Radar */
+  .radar-wrap{
+    display:flex; align-items:center; justify-content:center;
+    padding:6px 0 10px;
+  }
+  .radar{
+    position:relative;
+    width:238px; height:238px;
+    border-radius:50%;
+    background:radial-gradient(circle at 50% 50%, #101915 0%, #0B1310 100%);
+    border:1px solid var(--line);
+  }
+  .ring{
+    position:absolute; border:1px solid var(--line-soft); border-radius:50%;
+  }
+  .r1{inset:0;} .r2{inset:19%;} .r3{inset:38%;}
+  .sweep{
+    position:absolute; inset:0; border-radius:50%;
+    background:conic-gradient(from 0deg, rgba(78,217,127,0.16), transparent 32%);
+    animation:spin 4s linear infinite;
+  }
+  @media (prefers-reduced-motion: reduce){ .sweep{animation:none;} }
+  @keyframes spin{ to{ transform:rotate(360deg); } }
+
+  .compass-label{
+    position:absolute; font-family:var(--mono); font-size:9.5px; color:var(--text-faint);
+  }
+  .cl-n{top:4px; left:50%; transform:translateX(-50%);}
+  .cl-s{bottom:4px; left:50%; transform:translateX(-50%);}
+  .cl-e{right:6px; top:50%; transform:translateY(-50%);}
+  .cl-w{left:6px; top:50%; transform:translateY(-50%);}
+
+  .own-tractor{
+    position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
+    width:20px; height:20px; border-radius:5px;
+    background:var(--text); color:var(--panel);
+    display:flex; align-items:center; justify-content:center;
+    font-size:11px; z-index:3;
+  }
+
+  .blip{
+    position:absolute;
+    width:15px; height:15px; margin-left:-7.5px; margin-top:-7.5px;
+    border-radius:50%;
+    background:var(--blue);
+    display:flex; align-items:center; justify-content:center;
+    font-size:9px; color:#06141F;
+    z-index:2;
+    box-shadow:0 0 0 3px rgba(87,168,232,0.18);
+  }
+  .blip.pending{ animation:blink 1s step-start infinite; }
+  @keyframes blink{ 50%{ opacity:.15; } }
+  @media (prefers-reduced-motion: reduce){ .blip.pending{animation:none; opacity:.55;} }
+
+  /* Semaphore */
+  .semaphore{
+    display:flex; flex-direction:column; gap:8px;
+  }
+  .sem-row{
+    display:flex; align-items:center; gap:10px;
+    padding:8px 10px;
+    border-radius:5px;
+    background:var(--panel-raised);
+    border:1px solid var(--line);
+    opacity:.35;
+    transition:opacity .2s ease, border-color .2s ease;
+  }
+  .sem-row.active{opacity:1;}
+  .sem-row.active.g{border-color:rgba(78,217,127,.4);}
+  .sem-row.active.a{border-color:rgba(245,185,66,.4);}
+  .sem-row.active.r{border-color:rgba(255,92,77,.45);}
+  .sem-led{width:12px;height:12px;border-radius:50%; flex-shrink:0;}
+  .sem-led.g{background:var(--green);}
+  .sem-led.a{background:var(--amber);}
+  .sem-led.r{background:var(--red);}
+  .sem-row.active.r .sem-led.blink{animation:blink 0.85s step-start infinite;}
+  @media (prefers-reduced-motion: reduce){ .sem-row.active.r .sem-led.blink{animation:none; opacity:.5;} }
+  .sem-text{font-family:var(--sans); font-size:12px; color:var(--text); font-weight:500;}
+  .sem-sub{font-family:var(--mono); font-size:10.5px; color:var(--text-dim); margin-top:1px;}
+
+  .distance-readout{
+    margin-top:4px;
+    display:flex; align-items:baseline; gap:6px;
+  }
+  .distance-readout .num{
+    font-family:var(--mono); font-size:34px; font-weight:600; line-height:1;
+    color:var(--text);
+  }
+  .distance-readout .unit{
+    font-family:var(--mono); font-size:13px; color:var(--text-dim);
+  }
+
+  .audio-row{
+    display:flex; align-items:center; gap:11px;
+  }
+  .audio-icon{font-size:20px; width:28px; text-align:center; flex-shrink:0;}
+  .audio-text #audioLabel{font-family:var(--sans); font-size:12.5px; color:var(--text); font-weight:500;}
+  .audio-sub{font-family:var(--mono); font-size:10px; color:var(--text-faint); margin-top:2px;}
+  .mute-btn{
+    margin-top:10px; width:100%;
+    font-family:var(--sans); font-size:11.5px; font-weight:600;
+    color:var(--text); background:var(--panel-raised);
+    border:1px solid var(--line); border-radius:5px;
+    padding:8px; cursor:pointer; letter-spacing:.03em;
+    transition:all .15s ease;
+  }
+  .mute-btn:hover{border-color:#3A453F; background:#232C28;}
+  .mute-btn.muted{color:var(--text-faint); cursor:default; background:var(--panel);}
+  .mute-btn.muted:hover{border-color:var(--line); background:var(--panel);}
+
+  /* ---------- ALERT BANNER ---------- */
+  .alert-banner{
+    flex-shrink:0;
+    display:flex; align-items:center; gap:12px;
+    padding:0 20px;
+    height:0;
+    overflow:hidden;
+    background:var(--red);
+    transition:height .25s ease;
+  }
+  .alert-banner.show{height:52px;}
+  .alert-banner .icon{
+    width:26px;height:26px;border-radius:50%;
+    background:rgba(0,0,0,0.2);
+    display:flex;align-items:center;justify-content:center;
+    font-size:14px; flex-shrink:0;
+    animation:pulseIcon 1s infinite;
+  }
+  @keyframes pulseIcon{ 50%{ transform:scale(1.12); } }
+  @media (prefers-reduced-motion: reduce){ .alert-banner .icon{animation:none;} }
+  .alert-banner .txt{
+    font-family:var(--sans); font-weight:700; font-size:14.5px; color:#2A0705;
+    letter-spacing:.02em;
+  }
+  .alert-banner .txt small{
+    display:block; font-family:var(--mono); font-weight:500; font-size:11px;
+    color:#54120D; letter-spacing:.02em; margin-top:1px;
+  }
+  .alert-banner .spacer{flex:1;}
+  .ack-btn{
+    flex-shrink:0;
+    font-family:var(--sans); font-weight:600; font-size:12.5px;
+    color:#3D0906; background:rgba(255,255,255,0.85);
+    border:none; border-radius:5px; padding:8px 16px;
+    cursor:pointer; letter-spacing:.02em;
+    transition:background .15s ease;
+  }
+  .ack-btn:hover{background:#fff;}
+  .alert-banner.acked{background:#6B2E27;}
+  .alert-banner.acked .icon{animation:none;}
+  .alert-banner.acked .txt{color:#F3D9D6;}
+  .alert-banner.acked .txt small{color:#D9A9A3;}
+
+  /* ---------- TABS ---------- */
+  .tabs{
+    flex-shrink:0;
+    display:flex; gap:2px;
+    padding:8px 20px 0;
+    background:var(--panel);
+    border-bottom:1px solid var(--line);
+  }
+  .tab-btn{
+    font-family:var(--sans); font-size:12.5px; font-weight:600;
+    color:var(--text-dim); background:transparent;
+    border:none; border-bottom:2px solid transparent;
+    padding:9px 14px 10px; cursor:pointer;
+    letter-spacing:.02em;
+    display:flex; align-items:center; gap:7px;
+  }
+  .tab-btn .badge{
+    font-family:var(--mono); font-size:10px; font-weight:600;
+    background:var(--panel-raised); color:var(--text-dim);
+    border-radius:9px; padding:1px 6px; min-width:16px; text-align:center;
+  }
+  .tab-btn.active{color:var(--text); border-bottom-color:var(--green);}
+  .tab-btn.active .badge{background:var(--green-dim); color:var(--green);}
+  .tab-btn:hover{color:var(--text);}
+
+  /* ---------- HISTORY VIEW ---------- */
+  .history-view{
+    flex:1; overflow-y:auto;
+    padding:18px 28px;
+    background:var(--void);
+  }
+  .history-header{
+    display:flex; align-items:baseline; justify-content:space-between;
+    margin-bottom:14px;
+  }
+  .history-header h2{
+    font-family:var(--sans); font-size:16px; color:var(--text); font-weight:600;
+  }
+  .history-header span{
+    font-family:var(--mono); font-size:11px; color:var(--text-faint);
+  }
+  .log-entry{
+    display:flex; align-items:flex-start; gap:12px;
+    padding:11px 14px;
+    border-radius:6px;
+    background:var(--panel);
+    border:1px solid var(--line);
+    margin-bottom:6px;
+  }
+  .log-dot{
+    width:9px; height:9px; border-radius:50%; margin-top:4px; flex-shrink:0;
+  }
+  .log-dot.g{background:var(--green);}
+  .log-dot.a{background:var(--amber);}
+  .log-dot.r{background:var(--red);}
+  .log-dot.n{background:var(--text-faint);}
+  .log-body{flex:1;}
+  .log-text{font-family:var(--sans); font-size:12.5px; color:var(--text);}
+  .log-text b{font-weight:600;}
+  .log-time{font-family:var(--mono); font-size:10.5px; color:var(--text-faint); margin-top:2px;}
+  .log-ackpill{
+    font-family:var(--mono); font-size:9.5px; color:var(--green);
+    background:var(--green-dim); padding:2px 7px; border-radius:8px;
+    flex-shrink:0; align-self:center;
+  }
+
+  /* ---------- DEMO CONTROL (not part of final product) ---------- */
+  .demo-strip{
+    flex-shrink:0;
+    display:flex; align-items:center; gap:8px;
+    padding:10px 16px;
+    background:#0D1210;
+    border-top:1px solid var(--line);
+    overflow-x:auto;
+  }
+  .demo-strip span{
+    font-family:var(--mono); font-size:9.5px; color:var(--text-faint);
+    text-transform:uppercase; letter-spacing:.1em; margin-right:4px; flex-shrink:0;
+  }
+  .demo-btn{
+    font-family:var(--sans); font-size:11.5px; font-weight:500;
+    color:var(--text-dim); background:var(--panel-raised);
+    border:1px solid var(--line); border-radius:5px;
+    padding:6px 12px; cursor:pointer; white-space:nowrap;
+    transition:all .15s ease;
+  }
+  .demo-btn:hover{color:var(--text); border-color:#3A453F;}
+  .demo-btn.on{color:var(--void); background:var(--text); border-color:var(--text);}
+
+  @media (max-width:860px){
+    .main{grid-template-columns:1fr;}
+    /* empilhado em coluna única, o painel da câmera vira uma 2ª linha do grid
+       com altura "auto" — sem um mínimo explícito ele colapsa pra 0px, porque
+       seu conteúdo (.camera-view) só tem altura via flex:1, que não tem o que
+       "esticar" dentro de uma linha de grid sem altura definida. */
+    .camera-panel{min-height:280px;}
+    .radar{width:190px;height:190px;}
+  }
+</style>
+</head>
+<body>
+
+<div class="rig">
+
+  <div class="ribbon">
+    <div class="brand"><b>CHALLENGE JOHN DEERE</b> · Detecção &amp; Prevenção de Colisão</div>
+    <div class="status-cluster">
+      <div class="status-chip"><span class="dot" id="dotPi"></span>RASPBERRY PI</div>
+      <div class="status-chip"><span class="dot" id="dotEsp"></span>ESP32 / LORA</div>
+      <div class="clock" id="clock">--:--:--</div>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active" data-view="panel">🎛️ Painel</button>
+    <button class="tab-btn" data-view="history">🕒 Histórico <span class="badge" id="logBadge">1</span></button>
+  </div>
+
+  <div id="viewPanel" style="display:flex; flex-direction:column; flex:1; min-height:0;">
+  <div class="main">
+
+    <div class="camera-panel">
+      <div class="camera-view" id="cameraView">
+        <img class="cam-img" id="camImg" alt="Feed da câmera traseira">
+        <div class="rec-chip"><span class="reddot"></span>CÂMERA TRASEIRA · AO VIVO</div>
+        <div class="cam-label">320×320 · NCNN</div>
+      </div>
+      <div class="cam-caption" id="camCaption"><b>Conectando</b>&nbsp;— aguardando primeiro quadro da câmera</div>
+    </div>
+
+    <div class="side">
+
+      <div class="panel-block">
+        <div class="panel-title">Rosa dos ventos</div>
+        <div class="radar-wrap">
+          <div class="radar" id="radar">
+            <div class="sweep"></div>
+            <div class="ring r1"></div>
+            <div class="ring r2"></div>
+            <div class="ring r3"></div>
+            <span class="compass-label cl-n">FRENTE</span>
+            <span class="compass-label cl-s">TRÁS</span>
+            <span class="compass-label cl-e">DIR</span>
+            <span class="compass-label cl-w">ESQ</span>
+            <div class="own-tractor">▲</div>
+            <!-- blips injected by JS -->
+          </div>
+        </div>
+      </div>
+
+      <div class="panel-block">
+        <div class="panel-title">Nível de risco</div>
+        <div class="semaphore">
+          <div class="sem-row g" id="rowG">
+            <span class="sem-led g"></span>
+            <div><div class="sem-text">Seguro</div><div class="sem-sub">&gt; 80 m</div></div>
+          </div>
+          <div class="sem-row a" id="rowA">
+            <span class="sem-led a"></span>
+            <div><div class="sem-text">Atenção</div><div class="sem-sub">40 – 80 m</div></div>
+          </div>
+          <div class="sem-row r" id="rowR">
+            <span class="sem-led r" id="ledR"></span>
+            <div><div class="sem-text" id="rTextMain">Risco crítico</div><div class="sem-sub" id="rTextSub">&lt; 40 m</div></div>
+          </div>
+        </div>
+        <div class="distance-readout">
+          <span class="num" id="distNum">142</span><span class="unit">metros — entidade mais próxima</span>
+        </div>
+      </div>
+
+      <div class="panel-block">
+        <div class="panel-title">Áudio / Buzzer</div>
+        <div class="audio-row">
+          <span class="audio-icon" id="audioIcon">🔇</span>
+          <div class="audio-text">
+            <div id="audioLabel">Silêncio</div>
+            <div class="audio-sub" id="audioSub"></div>
+          </div>
+        </div>
+        <button class="mute-btn" id="muteBtn" style="display:none;">SILENCIAR SOM</button>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="alert-banner" id="alertBanner">
+    <div class="icon">⚠</div>
+    <div class="txt" id="alertTxt">NÃO IDENTIFICADO — AÇÃO IMEDIATA<small>Câmera confirma presença sem tag LoRa correspondente</small></div>
+    <div class="spacer"></div>
+    <button class="ack-btn" id="ackBtn">RECONHECER</button>
+  </div>
+  </div>
+
+  <div class="history-view" id="viewHistory" style="display:none;">
+    <div class="history-header">
+      <h2>Histórico de eventos</h2>
+      <span id="historyMeta">1 evento registrado nesta sessão</span>
+    </div>
+    <div id="logList"></div>
+  </div>
+
+  <div class="demo-strip">
+    <span>Demo (sem ESP32) →</span>
+    <button class="demo-btn" data-s="safe">Seguro</button>
+    <button class="demo-btn" data-s="amber">Atenção (40–80m)</button>
+    <button class="demo-btn" data-s="critico">Crítico (25m) — teste dentro/fora da câmera</button>
+    <button class="demo-btn" data-s="unidentified">MÁXIMO — fique NA câmera (sem entidade)</button>
+  </div>
+
+</div>
+
+<script>
+  // clock
+  function tick(){
+    document.getElementById('clock').textContent = new Date().toLocaleTimeString('pt-BR');
+  }
+  tick(); setInterval(tick, 1000);
+
+  const radar = document.getElementById('radar');
+  const R = 119; // radar radius in px (half of 238)
+
+  function polarBlip(angleDeg, distFrac, type, pending){
+    // angleDeg: 0 = front(top), clockwise
+    const rad = (angleDeg - 90) * Math.PI/180;
+    const r = Math.min(distFrac, 1) * (R - 12);
+    const x = R + r*Math.cos(rad);
+    const y = R + r*Math.sin(rad);
+    const el = document.createElement('div');
+    el.className = 'blip' + (pending ? ' pending' : '');
+    el.style.left = x+'px';
+    el.style.top = y+'px';
+    el.textContent = type === 'tractor' ? '▣' : '●';
+    return el;
+  }
+
+  function clearBlips(){
+    radar.querySelectorAll('.blip').forEach(b=>b.remove());
+  }
+
+  const rowG = document.getElementById('rowG');
+  const rowA = document.getElementById('rowA');
+  const rowR = document.getElementById('rowR');
+  const ledR = document.getElementById('ledR');
+  const rTextSub = document.getElementById('rTextSub');
+  const distNum = document.getElementById('distNum');
+  const camCaption = document.getElementById('camCaption');
+  const alertBanner = document.getElementById('alertBanner');
+  const dotPi = document.getElementById('dotPi');
+  const dotEsp = document.getElementById('dotEsp');
+
+  let currentScenarioKey = 'safe';
+  let soundMuted = false;
+
+  // Botões de demo mandam uma entidade FALSA pro mesmo endpoint que o ESP32
+  // vai usar (POST /api/entidade) — não é um mock só no front-end, é o
+  // backend real (logica_alerta.py) recebendo um dado simulado no lugar do
+  // LoRa. Serve de plano B pra demonstração caso o GPS/ESP32 não funcione ao
+  // vivo. A câmera continua sempre real: pra ver "confirmado" ou "MÁXIMO",
+  // é preciso fisicamente estar (ou não) na frente da câmera de verdade.
+  const ENTIDADE_DEMO_ID = "demo-pessoa";
+
+  function aleatorioEntre(min, max){
+    return min + Math.random() * (max - min);
+  }
+
+  // Distância E ângulo sorteados dentro da faixa de cada nível a cada clique
+  // (não um valor fixo sempre igual) — mostra a lógica reagindo a dados
+  // variados de verdade, não só repetindo o mesmo número.
+  async function definirEntidadeDemo(distanciaMin, distanciaMax){
+    const distanciaM = aleatorioEntre(distanciaMin, distanciaMax);
+    const anguloDeg = aleatorioEntre(0, 360);
+    await fetch('/api/entidade', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({id: ENTIDADE_DEMO_ID, tipo: 'pessoa', distancia_m: distanciaM, angulo_deg: anguloDeg}),
+    });
+    pollStatusReal();
+  }
+
+  async function removerEntidadeDemo(){
+    await fetch('/api/entidade/' + ENTIDADE_DEMO_ID, {method: 'DELETE'});
+    pollStatusReal();
+  }
+
+  const demoAcoes = {
+    safe: () => definirEntidadeDemo(81, 200),
+    amber: () => definirEntidadeDemo(41, 79),
+    critico: () => definirEntidadeDemo(5, 39),
+    unidentified: () => removerEntidadeDemo(),
+  };
+
+  function applyScenario(key){
+    currentScenarioKey = key;
+    document.querySelectorAll('.demo-btn').forEach(b=>b.classList.toggle('on', b.dataset.s===key));
+    const acao = demoAcoes[key];
+    if (acao) acao();
+  }
+
+  document.querySelectorAll('.demo-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>applyScenario(btn.dataset.s));
+  });
+
+  // ---------- STATUS REAL ----------
+  const RADAR_ALCANCE_M = 160; // escala visual do radar — ajustar quando soubermos o alcance real do LoRa
+  const severityMap = { seguro:'g', atencao:'a', critico_pendente:'r', critico_confirmado:'r', nao_identificado:'r', camera_offline:'n' };
+  const rTextSubMap = {
+    seguro: '> 80 m', atencao: '40 – 80 m',
+    critico_pendente: 'aguardando confirmação visual',
+    critico_confirmado: 'confirmado visualmente',
+    nao_identificado: 'sem registro no LoRa',
+  };
+
+  let nivelAnterior = null;
+
+  function atualizarSemaforo(nivel, distanciaM){
+    [rowG,rowA,rowR].forEach(r=>r.classList.remove('active'));
+    ledR.classList.remove('blink');
+    if(nivel==='seguro') rowG.classList.add('active');
+    else if(nivel==='atencao') rowA.classList.add('active');
+    else { // critico_pendente, critico_confirmado, nao_identificado
+      rowR.classList.add('active');
+      ledR.classList.toggle('blink', nivel==='critico_pendente');
+    }
+    rTextSub.textContent = rTextSubMap[nivel] || '< 40 m';
+    distNum.textContent = (distanciaM===null || distanciaM===undefined) ? '—' : Math.round(distanciaM);
+  }
+
+  function atualizarRadar(entidades){
+    clearBlips();
+    Object.values(entidades||{}).forEach(e=>{
+      const distFrac = Math.min(e.distancia_m / RADAR_ALCANCE_M, 1);
+      const tipo = e.tipo==='trator' ? 'tractor' : 'person';
+      radar.appendChild(polarBlip(e.angulo_deg||0, distFrac, tipo, false));
+    });
+  }
+
+  function atualizarAudio(som){
+    if(soundMuted && som.estado !== 'off'){
+      audioIcon.textContent = '🔇';
+      audioLabel.textContent = 'Som silenciado pelo operador';
+      audioSub.textContent = 'LED continua ativo até a situação mudar';
+      muteBtn.style.display = '';
+      muteBtn.classList.add('muted');
+      muteBtn.textContent = 'SOM SILENCIADO';
+      muteBtn.disabled = true;
+      return;
+    }
+    const labelMap = { off:'Silêncio', espacado:'Bipe espaçado (~5s)', continuo:'Bipe contínuo', urgente:'Alarme contínuo — tom urgente' };
+    audioIcon.textContent = soundIconMap[som.estado] || '🔈';
+    audioLabel.textContent = labelMap[som.estado] || som.estado;
+    audioSub.textContent = som.estado==='off' ? '' : 'Toca até a distância mudar ou ser reconhecida';
+    muteBtn.classList.remove('muted');
+    muteBtn.textContent = 'SILENCIAR SOM';
+    muteBtn.disabled = false;
+    muteBtn.style.display = som.estado==='off' ? 'none' : '';
+  }
+
+  function atualizarAlertaReal(alerta, entidades){
+    const nivelMudou = alerta.nivel !== nivelAnterior;
+
+    atualizarSemaforo(alerta.nivel, alerta.distancia_m);
+    atualizarRadar(entidades);
+
+    if(nivelMudou){
+      soundMuted = false;
+      alertBanner.classList.remove('acked');
+      ackBtn.style.display = '';
+      alertTxt.innerHTML = `${alerta.mensagem}<small>Câmera confirma presença sem tag LoRa correspondente</small>`;
+      pushLogReal(alerta.nivel, alerta.mensagem);
+      nivelAnterior = alerta.nivel;
+    }
+
+    atualizarAudio(alerta.som);
+    alertBanner.classList.toggle('show', alerta.nivel === 'nao_identificado');
+  }
+
+  function pushLogReal(nivel, mensagem){
+    eventLog.unshift({ time:new Date(), sev:severityMap[nivel]||'n', text:mensagem, acked:false });
+    renderLog();
+  }
+
+  async function pollStatusReal(){
+    try{
+      const r = await fetch('/api/status');
+      const s = await r.json();
+
+      dotPi.classList.toggle('off', !s.camera_online);
+      dotEsp.classList.toggle('off', !s.esp_online);
+
+      if(!s.camera_online){
+        camCaption.innerHTML = '<b>CÂMERA OFFLINE</b> — sem sinal do Raspberry Pi';
+      } else if(s.deteccoes.length > 0){
+        camCaption.innerHTML = `<b>Detecção</b> — ${s.deteccoes.length} pessoa(s) no quadro atual`;
+      } else {
+        camCaption.innerHTML = '<b>Aguardando</b> — nenhuma detecção no quadro atual';
+      }
+
+      atualizarAlertaReal(s.alerta, s.entidades);
+    }catch(e){
+      dotPi.classList.add('off');
+      camCaption.innerHTML = '<b>SEM CONEXÃO</b> — não foi possível falar com o servidor';
+    }
+  }
+  pollStatusReal();
+  setInterval(pollStatusReal, 1000);
+
+  // Atualiza a imagem em loop (funciona em qualquer navegador, inclusive
+  // Safari/iPhone/iPad, que não suporta o streaming multipart de /video_feed).
+  const camImg = document.getElementById('camImg');
+  function refreshSnapshot(){
+    camImg.src = '/snapshot.jpg?t=' + Date.now();
+  }
+  refreshSnapshot();
+  setInterval(refreshSnapshot, 150); // ~6-7 quadros/s, suficiente pra visualização
+
+  // must exist before first applyScenario() call at the bottom of this script
+  const alertTxt = document.getElementById('alertTxt');
+  const ackBtn = document.getElementById('ackBtn');
+  const defaultAlertHTML = alertTxt.innerHTML;
+
+  const eventLog = [];
+  const logList = document.getElementById('logList');
+  const logBadge = document.getElementById('logBadge');
+  const historyMeta = document.getElementById('historyMeta');
+
+  function renderLog(){
+    logBadge.textContent = eventLog.length;
+    historyMeta.textContent = eventLog.length + (eventLog.length===1 ? ' evento registrado nesta sessão' : ' eventos registrados nesta sessão');
+    logList.innerHTML = eventLog.map(e=>`
+      <div class="log-entry">
+        <span class="log-dot ${e.sev}"></span>
+        <div class="log-body">
+          <div class="log-text">${e.text}</div>
+          <div class="log-time">${e.time.toLocaleTimeString('pt-BR')}</div>
+        </div>
+        ${e.acked ? '<span class="log-ackpill">RECONHECIDO</span>' : ''}
+      </div>
+    `).join('');
+  }
+
+  const audioIcon = document.getElementById('audioIcon');
+  const audioLabel = document.getElementById('audioLabel');
+  const audioSub = document.getElementById('audioSub');
+  const muteBtn = document.getElementById('muteBtn');
+
+  const soundIconMap = { off:'🔇', espacado:'🔈', continuo:'🔊', urgente:'🚨' };
+
+  function muteSound(){
+    if(soundMuted) return;
+    soundMuted = true;
+    if(nivelAnterior === 'nao_identificado'){
+      alertBanner.classList.add('acked');
+      ackBtn.style.display = 'none';
+      const t = new Date().toLocaleTimeString('pt-BR');
+      alertTxt.innerHTML = `NÃO IDENTIFICADO — reconhecido pelo operador<small>Buzzer silenciado às ${t} · LED permanece ativo até a situação mudar</small>`;
+    }
+    if(eventLog.length){ eventLog[0].acked = true; renderLog(); }
+    pollStatusReal();
+  }
+
+  muteBtn.addEventListener('click', muteSound);
+  ackBtn.addEventListener('click', muteSound);
+
+  // ---------- TABS ----------
+  document.querySelectorAll('.tab-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('active', b===btn));
+      const isHistory = btn.dataset.view==='history';
+      document.getElementById('viewPanel').style.display = isHistory ? 'none' : 'flex';
+      document.getElementById('viewHistory').style.display = isHistory ? 'block' : 'none';
+    });
+  });
+
+  applyScenario('safe');
+</script>
+
+</body>
+</html>

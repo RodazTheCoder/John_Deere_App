@@ -1,0 +1,7 @@
+flask
+opencv-python
+ultralytics
+
+# Instalar torch/torchvision separadamente com o índice CPU-only ANTES deste
+# arquivo (o índice genérico do PyPI puxa CUDA Toolkit inteiro, inútil no Pi):
+#   pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
