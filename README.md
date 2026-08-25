@@ -269,20 +269,52 @@ Pra evitar retrabalho, aqui vai o resumo do que já foi decidido e descartado, c
 
 ---
 
-## Setup local (Mac, desenvolvimento)
+## Setup local (qualquer notebook — Mac, Linux ou Windows)
+
+O projeto todo é Python puro + Flask, então roda em qualquer sistema com Python 3.9+ e uma webcam. Só a criação/ativação do ambiente virtual muda de comando entre sistemas — o resto é idêntico.
+
+**1. Clonar o repositório e criar o ambiente virtual:**
 
 ```bash
-python3 -m venv venv          # recomendado: apontar pra um python3.11 estável
-source venv/bin/activate
-pip install -r raspberry_pi_app/requirements.txt
-pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+git clone https://github.com/RodazTheCoder/John_Deere_App.git
+cd John_Deere_App
+python3 -m venv venv   # Windows: py -m venv venv (ou "python -m venv venv")
 ```
 
-O modelo NCNN (`yolov8n_ncnn_model/`) já precisa estar na raiz do projeto (foi exportado com `yolo export model=yolov8n.pt format=ncnn imgsz=320`).
+**2. Ativar o ambiente virtual** (comando diferente por sistema):
+
+| Sistema | Comando |
+|---|---|
+| macOS / Linux (bash, zsh) | `source venv/bin/activate` |
+| Windows (PowerShell) | `venv\Scripts\Activate.ps1` |
+| Windows (CMD) | `venv\Scripts\activate.bat` |
+| Windows (Git Bash) | `source venv/Scripts/activate` |
+
+O prompt do terminal deve mostrar `(venv)` no começo quando ativado com sucesso.
+
+**3. Instalar as dependências** (mesmo comando em qualquer sistema):
+
+```bash
+pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+pip install -r raspberry_pi_app/requirements.txt
+```
+
+O modelo NCNN (`yolov8n_ncnn_model/`) já vem no repositório, na raiz do projeto — não precisa exportar de novo (só seria necessário recriá-lo com `yolo export model=yolov8n.pt format=ncnn imgsz=320` se ele não existisse).
+
+**4. Rodar:**
 
 ```bash
 cd raspberry_pi_app
 python app.py
 ```
+
+Abre em `http://127.0.0.1:5050/` (ou `http://localhost:5050/`).
+
+### Diferenças a esperar entre sistemas
+
+- **Porta 5050, não 5000**: escolhida assim de propósito porque no macOS a porta 5000 é ocupada pelo AirPlay Receiver. Em Linux/Windows isso não é um problema, mas a porta 5050 funciona igual nos três, então não precisa mudar nada.
+- **Índice da câmera** (`CAMERA_SOURCE` em `raspberry_pi_app/config.py`): `0` costuma ser a primeira/única webcam em qualquer sistema, mas se o notebook tiver mais de uma câmera (webcam embutida + uma USB, por exemplo), pode precisar trocar pra `1`, `2`, etc. até achar a certa — não tem como saber sem testar.
+- **Windows especificamente**: se `pip install` reclamar de compilador ausente ao instalar `opencv-python`, geralmente já existe wheel pré-compilado pra Windows e não deveria precisar compilar nada — mas se der erro, verificar se está usando Python 64-bit (não 32-bit).
+- **Linux**: se a webcam não for detectada, conferir se o usuário tem permissão de acesso a `/dev/video0` (grupo `video` no Ubuntu/Debian: `sudo usermod -aG video $USER`, depois logout/login).
 
 Documento de apresentação (`.pptx`, 12 slides) com a lógica de negócio completa existe à parte — é a fonte "oficial" da lógica; qualquer código deve implementar exatamente o que está lá, sem inventar variações sem avisar o grupo.
