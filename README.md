@@ -216,7 +216,9 @@ O dashboard agora tem botões de demo que mandam uma entidade **falsa pro backen
 
 ### 5. ~~LED físico + buzzer~~ ✅ Código pronto, falta a fiação real
 
-`configurarAlertaFisico()`/`atualizarAlertaFisico()` no firmware já fazem tudo: 3 LEDs (verde/amarelo/vermelho) + buzzer, com o vermelho piscando e o buzzer com bipe espaçado/contínuo dependendo da distância — usando os mesmos limiares (40m/80m) do painel, só que 100% local (nunca depende de Wi-Fi/Pi). Os pinos (`LED_VERDE_PIN=32, LED_AMARELO_PIN=33, LED_VERMELHO_PIN=27, BUZZER_PIN=26`) são **placeholder** — trocar pelos pinos reais assim que a fiação for definida (evitar os já usados por LoRa/GPS: 4, 5, 16, 17, 21, e os pinos de strapping do boot: 0, 2, 12, 15).
+`configurarAlertaFisico()`/`atualizarAlertaFisico()` no firmware já fazem tudo: 3 LEDs (verde/amarelo/vermelho) + buzzer, com o vermelho piscando e o buzzer com bipe espaçado/contínuo dependendo da distância — usando os mesmos limiares (40m/80m) do painel, só que 100% local (nunca depende de Wi-Fi/Pi). Pinos definidos: `LED_VERDE_PIN=14, LED_AMARELO_PIN=27, LED_VERMELHO_PIN=26, BUZZER_PIN=13` (livres, sem conflito com LoRa/GPS: 4, 5, 16, 17, 18, 19, 21, 23; nem com os reservados do ESP32: flash 6-11, strapping/boot 0/2/12/15, só-entrada 34-39).
+
+Além disso, quando o Pi está acessível, o ESP32 consulta `GET /api/alerta-fisico` a cada 1s e o LED/buzzer passam a refletir a lógica **cruzada** (câmera + LoRa, igual ao dashboard — inclusive o vermelho "confirmado" sólido, que o modo local sozinho não consegue mostrar). Se o Pi não responder por 5s, cai automaticamente de volta pro modo local.
 
 ### 6. ~~Portar pro Raspberry Pi de verdade~~ ✅ Feito e calibrado
 

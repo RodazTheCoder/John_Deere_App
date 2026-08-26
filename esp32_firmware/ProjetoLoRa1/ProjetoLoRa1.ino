@@ -89,15 +89,13 @@ Preferences preferencias;
 #define TXD2 17
 #define GPS_BAUD 9600
 
-// ---- TODO AJUSTAR AMANHÃ: pinos placeholder, trocar pelos que forem usados
-// na fiação de verdade (só precisa mudar esses 4 números, o resto do código
-// já funciona). Evitar pinos já usados acima (4,5,16,17,21) e os pinos de
-// "strapping" do ESP32 (0, 2, 12, 15), que afetam o boot se tiverem
-// componente puxando eles durante o reset.
-#define LED_VERDE_PIN 32
-#define LED_AMARELO_PIN 33
-#define LED_VERMELHO_PIN 27
-#define BUZZER_PIN 26
+// Pinos do LED/buzzer físico -- livres, sem conflito com LoRa/GPS (4, 5, 16,
+// 17, 18, 19, 21, 23) nem com os pinos reservados do ESP32 (flash: 6-11;
+// strapping/boot: 0, 2, 12, 15; só entrada: 34-39).
+#define LED_VERDE_PIN 14
+#define LED_AMARELO_PIN 27
+#define LED_VERMELHO_PIN 26
+#define BUZZER_PIN 13
 
 const double RAIO_TERRA_M = 6371000.0;
 
