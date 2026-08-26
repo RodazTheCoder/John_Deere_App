@@ -46,6 +46,7 @@
   const char* WIFI_SSID = "JohnDeere-Trator";
   const char* WIFI_SENHA = "12345678";
   const char* PI_URL = "http://10.42.0.1:5050/api/entidade"; // IP do hotspot criado pelo nmcli no Pi (trixie)
+  const char* PI_ALERTA_URL = "http://10.42.0.1:5050/api/alerta-fisico";
 
   // TODO (pendente, ver README.md > Pendências): tentamos um heartbeat
   // próprio (POST /api/heartbeat) pra acender "ESP32 online" no dashboard
@@ -55,7 +56,23 @@
   // hotspot do Pi (nmcli) só estava aceitando 1 cliente por vez (ou tinha
   // uma conexão fantasma ocupando a vaga). Investigar isso antes de tentar
   // heartbeat de novo -- provavelmente precisa aumentar o limite de
-  // clientes do hotspot do lado do Pi.
+  // clientes do hotspot do lado do Pi. Isso também pode atrapalhar a
+  // consulta de alerta abaixo, se o hotspot recusar a reconexão.
+
+  // Consulta o alerta já cruzado (câmera + LoRa) que o Pi calculou, pra
+  // fazer o LED/buzzer físico bater exatamente com o semáforo do dashboard
+  // -- não só a distância crua. Se o Pi não responder por tempo demais
+  // (ALERTA_PI_TIMEOUT_MS), o LED cai sozinho de volta pro fallback local
+  // (atualizarAlertaFisico, só distância) -- nunca fica sem alerta nenhum
+  // só porque o Pi caiu ou o WiFi oscilou.
+  const unsigned long INTERVALO_CONSULTA_ALERTA_MS = 1000;
+  const unsigned long ALERTA_PI_TIMEOUT_MS = 5000;
+
+  unsigned long ultimaConsultaAlerta = 0;
+  unsigned long ultimoAlertaPiOk = 0;
+  String corAlertaPi = "";
+  bool piscandoAlertaPi = false;
+  String somAlertaPi = "";
 #endif
 
 // =====================================================================================
@@ -189,6 +206,66 @@ void atualizarAlertaFisico(float distanciaM) {
     digitalWrite(BUZZER_PIN, HIGH);
   }
 }
+
+#if TRATOR_COM_PI
+// Busca no Pi o alerta já cruzado (câmera + LoRa). Formato da resposta:
+// "cor,piscando,som" em texto simples (ex: "vermelho,0,continuo") -- sem
+// biblioteca de JSON de propósito, pra manter o firmware leve. Se falhar por
+// qualquer motivo, simplesmente não atualiza nada -- quem decide cair pro
+// modo local é o loop(), com base em há quanto tempo a última consulta OK.
+void consultarAlertaPi() {
+  if (WiFi.status() != WL_CONNECTED) return;
+
+  HTTPClient http;
+  http.begin(PI_ALERTA_URL);
+  http.setTimeout(1500);
+  int codigo = http.GET();
+  if (codigo == 200) {
+    String resposta = http.getString();
+    int p1 = resposta.indexOf(',');
+    int p2 = resposta.indexOf(',', p1 + 1);
+    if (p1 > 0 && p2 > p1) {
+      corAlertaPi = resposta.substring(0, p1);
+      piscandoAlertaPi = resposta.substring(p1 + 1, p2).toInt() == 1;
+      somAlertaPi = resposta.substring(p2 + 1);
+      somAlertaPi.trim();
+      ultimoAlertaPiOk = millis();
+    }
+  }
+  http.end();
+}
+
+// Aciona o LED/buzzer com o alerta que já veio cruzado do Pi (câmera + LoRa)
+// -- ao contrário de atualizarAlertaFisico(), aqui dá pra mostrar "confirmado"
+// (sólido) de verdade, porque o Pi já sabe o que a câmera viu.
+void atualizarAlertaFisicoComPi(const String& cor, bool piscando, const String& som) {
+  digitalWrite(LED_VERDE_PIN, cor == "verde" ? HIGH : LOW);
+  digitalWrite(LED_AMARELO_PIN, cor == "amarelo" ? HIGH : LOW);
+
+  if (cor == "vermelho") {
+    if (piscando) {
+      if (millis() - ultimoToggleLed > BLINK_INTERVALO_MS) {
+        ledVermelhoAceso = !ledVermelhoAceso;
+        ultimoToggleLed = millis();
+      }
+      digitalWrite(LED_VERMELHO_PIN, ledVermelhoAceso ? HIGH : LOW);
+    } else {
+      digitalWrite(LED_VERMELHO_PIN, HIGH); // confirmado -- sólido, só o Pi consegue saber disso
+    }
+  } else {
+    digitalWrite(LED_VERMELHO_PIN, LOW);
+  }
+
+  if (som == "espacado") {
+    bool tocando = (millis() % BEEP_ESPACADO_INTERVALO_MS) < BEEP_ESPACADO_DURACAO_MS;
+    digitalWrite(BUZZER_PIN, tocando ? HIGH : LOW);
+  } else if (som == "continuo" || som == "urgente") {
+    digitalWrite(BUZZER_PIN, HIGH); // "urgente" (caso MÁXIMO) tratado igual a contínuo por simplicidade
+  } else {
+    digitalWrite(BUZZER_PIN, LOW); // "off"
+  }
+}
+#endif
 
 // Gera um ID globalmente único a partir do MAC de fábrica do chip (nunca se
 // repete entre placas) e guarda na memória não-volátil na primeira vez que
@@ -389,7 +466,23 @@ void processarPacoteRecebido(double minhaLat, double minhaLon, bool meuGpsValido
 }
 
 void loop() {
-  atualizarAlertaFisico(distanciaMaisRecenteM); // sem delay() -- precisa rodar todo loop
+  // Sem delay() nenhum aqui -- LED/buzzer e a consulta ao Pi precisam rodar
+  // todo loop pra animação de piscar/bipe não travar.
+#if TRATOR_COM_PI
+  if (millis() - ultimaConsultaAlerta > INTERVALO_CONSULTA_ALERTA_MS) {
+    consultarAlertaPi();
+    ultimaConsultaAlerta = millis();
+  }
+
+  bool alertaPiValido = (ultimoAlertaPiOk != 0) && (millis() - ultimoAlertaPiOk < ALERTA_PI_TIMEOUT_MS);
+  if (alertaPiValido) {
+    atualizarAlertaFisicoComPi(corAlertaPi, piscandoAlertaPi, somAlertaPi);
+  } else {
+    atualizarAlertaFisico(distanciaMaisRecenteM); // Pi não respondeu a tempo -- cai pro modo local sozinho
+  }
+#else
+  atualizarAlertaFisico(distanciaMaisRecenteM);
+#endif
 
   while (gpsSerial.available() > 0) {
     gps.encode(gpsSerial.read());

@@ -45,18 +45,43 @@ def snapshot():
     return Response(frame_jpeg, mimetype="image/jpeg", headers={"Cache-Control": "no-store"})
 
 
-@app.route("/api/status")
-def status():
+def _alerta_atual():
     camera_online = estado.camera_online(config.HEARTBEAT_TIMEOUT_S)
     entidades = estado.ler_entidades()
     deteccoes = estado.ler_deteccoes()
+    alerta = calcular_alerta(entidades, deteccoes, camera_online)
+    return camera_online, entidades, deteccoes, alerta
+
+
+@app.route("/api/status")
+def status():
+    camera_online, entidades, deteccoes, alerta = _alerta_atual()
     return jsonify({
         "camera_online": camera_online,
         "esp_online": estado.esp_online(config.HEARTBEAT_TIMEOUT_S),
         "deteccoes": deteccoes,
         "entidades": entidades,
-        "alerta": calcular_alerta(entidades, deteccoes, camera_online),
+        "alerta": alerta,
     })
+
+
+@app.route("/api/alerta-fisico")
+def alerta_fisico():
+    """Versão compacta em texto simples (não JSON) do alerta atual -- pro
+    ESP32 do trator conseguir fazer o LED/buzzer físico refletir a lógica
+    cruzada (câmera + LoRa) sem precisar de biblioteca de JSON no firmware.
+
+    Formato: "cor,piscando,som" -- ex: "vermelho,0,continuo".
+
+    Se o ESP32 não conseguir consultar isso (Pi caiu, sem WiFi, câmera
+    travada, etc.), ele cai sozinho de volta pro fallback local (só
+    distância) -- ver atualizarAlertaFisico() no firmware. O LED nunca fica
+    sem lógica nenhuma só porque essa rota parou de responder.
+    """
+    _, _, _, alerta = _alerta_atual()
+    piscando = 1 if alerta["led"]["piscando"] else 0
+    corpo = f"{alerta['led']['cor']},{piscando},{alerta['som']['estado']}"
+    return Response(corpo, mimetype="text/plain")
 
 
 @app.route("/api/entidade", methods=["POST"])
