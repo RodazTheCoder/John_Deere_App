@@ -35,6 +35,12 @@ class EstadoCompartilhado:
         # os dois -- ver app.py > _alerta_atual().
         self._modo_demo = False
 
+        # Escala configurável dos limiares verde/amarelo (ver /api/escala em
+        # app.py) -- None = usa o padrão de config.py (100m). Pensado pra
+        # testar em ambientes menores (sala) sem precisar alcançar 100m de
+        # verdade, mantendo a mesma proporção 1:2 entre atenção e crítico.
+        self._escala_verde_m = None
+
     # ---- câmera ----
     def atualizar_frame(self, frame_jpeg, deteccoes):
         with self._lock:
@@ -109,6 +115,15 @@ class EstadoCompartilhado:
     def modo_demo(self):
         with self._lock:
             return self._modo_demo
+
+    # ---- escala configurável ----
+    def definir_escala(self, verde_m):
+        with self._lock:
+            self._escala_verde_m = verde_m  # None reseta pro padrão de config.py
+
+    def escala_verde_m(self):
+        with self._lock:
+            return self._escala_verde_m
 
 
 estado = EstadoCompartilhado()

@@ -78,6 +78,18 @@ class TestTabelaDeVerdade(unittest.TestCase):
         self.assertEqual(r["distancia_m"], 20)
         self.assertEqual(r["nivel"], CRITICO_PENDENTE)
 
+    def test_escala_customizada_muda_classificacao(self):
+        # 15m com os limiares padrão (50/100) é crítico; com uma escala menor
+        # (10/20, pra testar em sala) os mesmos 15m viram só atenção.
+        padrao = calcular_alerta({"p1": entidade(15)}, [], camera_online=True)
+        self.assertEqual(padrao["nivel"], CRITICO_PENDENTE)
+
+        escala_sala = calcular_alerta(
+            {"p1": entidade(15)}, [], camera_online=True,
+            distancia_verde_m=20, distancia_amarelo_m=10,
+        )
+        self.assertEqual(escala_sala["nivel"], ATENCAO)
+
 
 if __name__ == "__main__":
     unittest.main()

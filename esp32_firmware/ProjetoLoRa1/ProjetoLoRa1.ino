@@ -110,13 +110,16 @@ const float EXPOENTE_PERDA_AMBIENTE = 2.0;
 
 // Limiares do LED/buzzer FÍSICO (camada de segurança local, só distância --
 // o ESP32 não tem câmera, então não dá pra diferenciar "pendente" de
-// "confirmado" aqui, fica sempre piscando no vermelho por segurança). De
-// propósito batem com DISTANCIA_VERDE_M/DISTANCIA_AMARELO_M em
-// raspberry_pi_app/config.py -- as duas camadas são independentes (o físico
-// nunca depende do Pi/Wi-Fi), mas usar os mesmos números evita a dashboard e
-// o LED discordando um do outro numa demonstração.
-const float DISTANCIA_VERDE_M = 100.0;
-const float DISTANCIA_AMARELO_M = 50.0;
+// "confirmado" aqui, fica sempre piscando no vermelho por segurança).
+// Começam batendo com o padrão de raspberry_pi_app/config.py (100m/50m),
+// mas NÃO são mais fixos: se TRATOR_COM_PI=1, toda vez que o Pi responde
+// /api/alerta-fisico com sucesso, esses dois valores são atualizados com a
+// escala configurada de lá (ver /api/escala, "config.py > DISTANCIA_..."
+// não é mais a fonte única). Isso é de propósito -- se o Pi cair no meio de
+// um teste em escala menor (sala), o fallback local usa a ÚLTIMA escala
+// confirmada em vez de voltar pro padrão de fábrica sem avisar ninguém.
+float DISTANCIA_VERDE_M = 100.0;
+float DISTANCIA_AMARELO_M = 50.0;
 
 const unsigned long BLINK_INTERVALO_MS = 500;
 const unsigned long BEEP_ESPACADO_INTERVALO_MS = 5000;
@@ -222,14 +225,21 @@ void consultarAlertaPi() {
   http.setTimeout(1500);
   int codigo = http.GET();
   if (codigo == 200) {
+    // formato: cor,piscando,som,verde_m,amarelo_m
     String resposta = http.getString();
     int p1 = resposta.indexOf(',');
     int p2 = resposta.indexOf(',', p1 + 1);
-    if (p1 > 0 && p2 > p1) {
+    int p3 = resposta.indexOf(',', p2 + 1);
+    int p4 = resposta.indexOf(',', p3 + 1);
+    if (p1 > 0 && p2 > p1 && p3 > p2 && p4 > p3) {
       corAlertaPi = resposta.substring(0, p1);
       piscandoAlertaPi = resposta.substring(p1 + 1, p2).toInt() == 1;
-      somAlertaPi = resposta.substring(p2 + 1);
+      somAlertaPi = resposta.substring(p2 + 1, p3);
       somAlertaPi.trim();
+      // Atualiza o cache da escala do fallback local -- ver comentário
+      // acima de DISTANCIA_VERDE_M. Só muda quando o Pi confirma de verdade.
+      DISTANCIA_VERDE_M = resposta.substring(p3 + 1, p4).toFloat();
+      DISTANCIA_AMARELO_M = resposta.substring(p4 + 1).toFloat();
       ultimoAlertaPiOk = millis();
       Serial.print("[alerta-pi] OK: ");
       Serial.println(resposta);

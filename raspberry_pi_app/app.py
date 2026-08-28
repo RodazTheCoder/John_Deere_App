@@ -62,18 +62,28 @@ def _alerta_atual():
         entidades = {k: v for k, v in todas_entidades.items() if k != ENTIDADE_DEMO_ID}
 
     deteccoes = estado.ler_deteccoes()
-    alerta = calcular_alerta(entidades, deteccoes, camera_online)
+
+    # Escala configurável (ver /api/escala): mantém sempre a proporção 1:2
+    # entre atenção e crítico, só muda o "tamanho" da régua -- útil pra
+    # testar em ambientes menores (sala) sem precisar alcançar 100m de
+    # verdade. None = usa o padrão de config.py.
+    escala_verde = estado.escala_verde_m()
+    if escala_verde is None:
+        escala_verde = config.DISTANCIA_VERDE_M
+    escala_amarelo = escala_verde / 2
+
+    alerta = calcular_alerta(entidades, deteccoes, camera_online, escala_verde, escala_amarelo)
     if estado.som_silenciado(alerta["nivel"]):
         # Silenciado pelo operador pra esse nível específico -- vale pro
         # dashboard E pro buzzer físico (ambos leem esse mesmo campo). O LED
         # não é tocado aqui, continua refletindo a situação real.
         alerta = {**alerta, "som": {"estado": "silenciado"}}
-    return camera_online, entidades, deteccoes, alerta
+    return camera_online, entidades, deteccoes, alerta, escala_verde, escala_amarelo
 
 
 @app.route("/api/status")
 def status():
-    camera_online, entidades, deteccoes, alerta = _alerta_atual()
+    camera_online, entidades, deteccoes, alerta, escala_verde, escala_amarelo = _alerta_atual()
     return jsonify({
         "camera_online": camera_online,
         "esp_online": estado.esp_online(config.HEARTBEAT_TIMEOUT_S),
@@ -81,7 +91,23 @@ def status():
         "entidades": entidades,
         "alerta": alerta,
         "modo_demo": estado.modo_demo(),
+        "escala_verde_m": escala_verde,
+        "escala_amarelo_m": escala_amarelo,
     })
+
+
+@app.route("/api/escala", methods=["POST"])
+def escala():
+    """Reconfigura os limiares verde/amarelo em tempo real, mantendo a
+    proporção 1:2 -- pra testar em ambientes menores (sala) sem precisar de
+    100m de verdade. {"verde_m": 20} -> vermelho <10m, amarelo 10-20m, verde
+    >20m. {"verde_m": null} reseta pro padrão de config.py (100m)."""
+    payload = request.get_json(silent=True) or {}
+    verde_m = payload.get("verde_m")
+    if verde_m is not None:
+        verde_m = float(verde_m)
+    estado.definir_escala(verde_m)
+    return jsonify({"ok": True, "escala_verde_m": verde_m})
 
 
 @app.route("/api/modo-demo", methods=["POST"])
@@ -103,16 +129,23 @@ def alerta_fisico():
     ESP32 do trator conseguir fazer o LED/buzzer físico refletir a lógica
     cruzada (câmera + LoRa) sem precisar de biblioteca de JSON no firmware.
 
-    Formato: "cor,piscando,som" -- ex: "vermelho,0,continuo".
+    Formato: "cor,piscando,som,verde_m,amarelo_m" -- ex:
+    "vermelho,0,continuo,20.0,10.0".
+
+    Os dois últimos campos (a escala atual, ver /api/escala) são pro ESP32
+    guardar como cache -- se o Pi cair, o fallback local (só distância, ver
+    atualizarAlertaFisico() no firmware) passa a usar a ÚLTIMA escala
+    confirmada em vez do padrão de fábrica (100m). Sem isso, um teste em
+    escala menor (sala) "voltaria" pra 100m de repente se a rede oscilasse
+    no pior momento possível.
 
     Se o ESP32 não conseguir consultar isso (Pi caiu, sem WiFi, câmera
-    travada, etc.), ele cai sozinho de volta pro fallback local (só
-    distância) -- ver atualizarAlertaFisico() no firmware. O LED nunca fica
+    travada, etc.), ele cai sozinho pro fallback local. O LED nunca fica
     sem lógica nenhuma só porque essa rota parou de responder.
     """
-    _, _, _, alerta = _alerta_atual()
+    _, _, _, alerta, escala_verde, escala_amarelo = _alerta_atual()
     piscando = 1 if alerta["led"]["piscando"] else 0
-    corpo = f"{alerta['led']['cor']},{piscando},{alerta['som']['estado']}"
+    corpo = f"{alerta['led']['cor']},{piscando},{alerta['som']['estado']},{escala_verde},{escala_amarelo}"
     return Response(corpo, mimetype="text/plain")
 
 
@@ -141,7 +174,7 @@ def silenciar():
     dashboard E no buzzer físico do ESP32, já que os dois leem o mesmo
     `alerta["som"]` -- até o nível de alerta mudar de verdade. O LED nunca é
     afetado por isso."""
-    _, _, _, alerta = _alerta_atual()
+    _, _, _, alerta, _, _ = _alerta_atual()
     estado.silenciar_som(alerta["nivel"])
     return jsonify({"ok": True})
 

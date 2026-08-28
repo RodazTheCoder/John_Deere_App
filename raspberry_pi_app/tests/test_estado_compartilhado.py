@@ -55,6 +55,15 @@ class TestEstadoCompartilhado(unittest.TestCase):
         self.estado.definir_modo_demo(False)
         self.assertFalse(self.estado.modo_demo())
 
+    def test_escala_comeca_none_usa_padrao(self):
+        self.assertIsNone(self.estado.escala_verde_m())
+
+    def test_escala_customizada_e_resetada(self):
+        self.estado.definir_escala(20)
+        self.assertEqual(self.estado.escala_verde_m(), 20)
+        self.estado.definir_escala(None)
+        self.assertIsNone(self.estado.escala_verde_m())
+
 
 if __name__ == "__main__":
     unittest.main()

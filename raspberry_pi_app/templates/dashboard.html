@@ -554,11 +554,18 @@
 
   <div class="demo-strip">
     <button class="demo-btn" id="modoDemoBtn">MODO DEMO: DESLIGADO</button>
+    <span style="display:flex; align-items:center; gap:6px;">
+      <span style="font-family:var(--mono); font-size:9.5px; color:var(--text-faint); text-transform:uppercase; letter-spacing:.1em;">Escala (verde acima de, m) →</span>
+      <input type="number" id="escalaInput" placeholder="100" min="1" step="1"
+        style="width:70px; font-family:var(--mono); font-size:12px; background:var(--panel-raised); color:var(--text); border:1px solid var(--line); border-radius:4px; padding:6px 8px;">
+      <button class="demo-btn" id="escalaAplicarBtn">Aplicar</button>
+      <button class="demo-btn" id="escalaPadraoBtn">Padrão (100m)</button>
+    </span>
     <span id="demoBotoes" style="display:flex; align-items:center; gap:8px;">
       <span>→</span>
       <button class="demo-btn" data-s="safe">Seguro</button>
-      <button class="demo-btn" data-s="amber">Atenção (50–100m)</button>
-      <button class="demo-btn" data-s="critico">Crítico (25m) — teste dentro/fora da câmera</button>
+      <button class="demo-btn" data-s="amber" id="btnAmber">Atenção</button>
+      <button class="demo-btn" data-s="critico" id="btnCritico">Crítico — teste dentro/fora da câmera</button>
       <button class="demo-btn" data-s="unidentified">MÁXIMO — fique NA câmera (sem entidade)</button>
     </span>
   </div>
@@ -603,6 +610,8 @@
   const alertBanner = document.getElementById('alertBanner');
   const dotPi = document.getElementById('dotPi');
   const dotEsp = document.getElementById('dotEsp');
+  const btnAmber = document.getElementById('btnAmber');
+  const btnCritico = document.getElementById('btnCritico');
 
   let currentScenarioKey = 'safe';
 
@@ -637,21 +646,27 @@
     pollStatusReal();
   }
 
+  // Faixas dos botões de demo acompanham a escala atual (ver /api/escala) --
+  // clicar "Crítico" com escala 10m injeta um valor bem menor do que com a
+  // escala padrão de 100m, sempre dentro da faixa certa pra aquele nível.
+  let escalaVerdeAtual = 100;
+  let escalaAmareloAtual = 50;
+
   const demoAcoes = {
-    safe: () => definirEntidadeDemo(101, 220),
-    amber: () => definirEntidadeDemo(51, 99),
-    critico: () => definirEntidadeDemo(5, 49),
+    safe: () => definirEntidadeDemo(escalaVerdeAtual + 1, escalaVerdeAtual * 2.2),
+    amber: () => definirEntidadeDemo(escalaAmareloAtual + 1, escalaVerdeAtual - Math.max(1, escalaVerdeAtual * 0.02)),
+    critico: () => definirEntidadeDemo(Math.max(1, escalaAmareloAtual * 0.1), Math.max(2, escalaAmareloAtual - 1)),
     unidentified: () => removerEntidadeDemo(),
   };
 
   function applyScenario(key){
     currentScenarioKey = key;
-    document.querySelectorAll('.demo-btn').forEach(b=>b.classList.toggle('on', b.dataset.s===key));
+    document.querySelectorAll('.demo-btn[data-s]').forEach(b=>b.classList.toggle('on', b.dataset.s===key));
     const acao = demoAcoes[key];
     if (acao) acao();
   }
 
-  document.querySelectorAll('.demo-btn').forEach(btn=>{
+  document.querySelectorAll('.demo-btn[data-s]').forEach(btn=>{
     btn.addEventListener('click', ()=>applyScenario(btn.dataset.s));
   });
 
@@ -681,6 +696,49 @@
     pollStatusReal();
   });
 
+  // Escala: reconfigura os limiares verde/amarelo em tempo real (mantendo a
+  // proporção 1:2), pra testar em ambientes menores sem precisar de 100m de
+  // verdade -- vale tanto pra dado real quanto pros botões de demo. Você
+  // digita qualquer valor pro limiar verde, o amarelo é sempre metade dele.
+  const escalaInput = document.getElementById('escalaInput');
+
+  async function aplicarEscala(verdeM){
+    await fetch('/api/escala', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({verde_m: verdeM}),
+    });
+    pollStatusReal();
+  }
+
+  document.getElementById('escalaAplicarBtn').addEventListener('click', ()=>{
+    const valor = Number(escalaInput.value);
+    if (valor > 0) aplicarEscala(valor);
+  });
+  document.getElementById('escalaPadraoBtn').addEventListener('click', ()=>{
+    escalaInput.value = '';
+    aplicarEscala(null);
+  });
+  escalaInput.addEventListener('keydown', (e)=>{
+    if (e.key === 'Enter') document.getElementById('escalaAplicarBtn').click();
+  });
+
+  function renderEscala(verdeM, amareloM){
+    escalaVerdeAtual = verdeM;
+    escalaAmareloAtual = amareloM;
+    // não sobrescreve enquanto o campo está em foco (usuário digitando)
+    if (document.activeElement !== escalaInput) {
+      escalaInput.value = verdeM === 100 ? '' : verdeM;
+    }
+    document.querySelector('#rowG .sem-sub').textContent = `> ${verdeM} m`;
+    document.querySelector('#rowA .sem-sub').textContent = `${amareloM} – ${verdeM} m`;
+    btnAmber.textContent = `Atenção (${amareloM}–${verdeM}m)`;
+    btnCritico.textContent = `Crítico (<${amareloM}m) — teste dentro/fora da câmera`;
+    rTextSubMap.seguro = `> ${verdeM} m`;
+    rTextSubMap.atencao = `${amareloM} – ${verdeM} m`;
+    rTextSubFallback = `< ${amareloM} m`;
+  }
+
   // ---------- STATUS REAL ----------
   const RADAR_ALCANCE_M = 160; // escala visual do radar — ajustar quando soubermos o alcance real do LoRa
   const severityMap = { seguro:'g', atencao:'a', critico_pendente:'r', critico_confirmado:'r', nao_identificado:'r', camera_offline:'n' };
@@ -690,6 +748,7 @@
     critico_confirmado: 'confirmado visualmente',
     nao_identificado: 'sem registro no LoRa',
   };
+  let rTextSubFallback = '< 50 m'; // atualizado em renderEscala() conforme a escala configurada
 
   let nivelAnterior = null;
 
@@ -702,7 +761,7 @@
       rowR.classList.add('active');
       ledR.classList.toggle('blink', nivel==='critico_pendente');
     }
-    rTextSub.textContent = rTextSubMap[nivel] || '< 50 m';
+    rTextSub.textContent = rTextSubMap[nivel] || rTextSubFallback;
     distNum.textContent = (distanciaM===null || distanciaM===undefined) ? '—' : Math.round(distanciaM);
   }
 
@@ -787,6 +846,7 @@
       dotPi.classList.toggle('off', !s.camera_online);
       dotEsp.classList.toggle('off', !s.esp_online);
       renderModoDemo(!!s.modo_demo);
+      renderEscala(s.escala_verde_m, s.escala_amarelo_m);
 
       if(!s.camera_online){
         camCaption.innerHTML = '<b>CÂMERA OFFLINE</b> — sem sinal do Raspberry Pi';

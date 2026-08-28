@@ -26,15 +26,23 @@ def _entidade_mais_proxima(entidades):
     return min(entidades.values(), key=lambda e: e["distancia_m"])
 
 
-def calcular_alerta(entidades, deteccoes, camera_online):
+def calcular_alerta(entidades, deteccoes, camera_online, distancia_verde_m=None, distancia_amarelo_m=None):
     """
     entidades: dict id -> {"tipo", "distancia_m", "angulo_deg", ...} (estado.ler_entidades())
     deteccoes: lista de caixas da câmera (estado.ler_deteccoes())
     camera_online: bool (estado.camera_online())
+    distancia_verde_m / distancia_amarelo_m: limiares a usar -- por padrão
+    (None) usa os valores fixos de config.py, mas o Pi permite reconfigurar
+    isso em tempo real (ver /api/escala em app.py), útil pra testar em
+    ambientes menores (sala) sem precisar alcançar 100m de verdade.
 
     Retorna um dict pronto pro dashboard consumir: nivel, distancia_m,
     tipo_entidade, led (cor + piscando), som (estado) e mensagem pro tablet.
     """
+    if distancia_verde_m is None:
+        distancia_verde_m = config.DISTANCIA_VERDE_M
+    if distancia_amarelo_m is None:
+        distancia_amarelo_m = config.DISTANCIA_AMARELO_M
     if not camera_online:
         return {
             "nivel": CAMERA_OFFLINE,
@@ -75,7 +83,7 @@ def calcular_alerta(entidades, deteccoes, camera_online):
     dist = entidade["distancia_m"]
     tipo = entidade["tipo"]
 
-    if dist > config.DISTANCIA_VERDE_M:
+    if dist > distancia_verde_m:
         return {
             "nivel": SEGURO,
             "distancia_m": dist,
@@ -85,7 +93,7 @@ def calcular_alerta(entidades, deteccoes, camera_online):
             "mensagem": "Radar normal — ninguém em risco",
         }
 
-    if dist > config.DISTANCIA_AMARELO_M:
+    if dist > distancia_amarelo_m:
         # fora do alcance realista da câmera — uma confirmação visual aqui
         # não existe e não mudaria o nível mesmo que existisse (ver caso do
         # trator confirmado a 60m no contexto do projeto).
@@ -98,7 +106,8 @@ def calcular_alerta(entidades, deteccoes, camera_online):
             "mensagem": f"Alerta a {dist:.0f} m — sem confirmação (fora do alcance)",
         }
 
-    # dist <= ALCANCE_CAMERA_M: zona vermelha
+    # dist <= distancia_amarelo_m: zona vermelha (esse limiar também representa
+    # o alcance assumido da câmera -- ver ALCANCE_CAMERA_M em config.py)
     if camera_detectando:
         return {
             "nivel": CRITICO_CONFIRMADO,
