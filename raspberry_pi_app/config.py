@@ -49,10 +49,14 @@ HEARTBEAT_TIMEOUT_S = 5
 
 # Tempo sem atualização até uma entidade LoRa ser considerada "sumida" (ex:
 # desligou a tag física). Sem isso, o último dado recebido fica valendo pra
-# sempre. Maior que o heartbeat porque o ESP32 só transmite a cada ~3s, com
-# 50% de chance de pular a vez (ver INTERVALO_JANELA_MS no firmware) -- 15s
-# dá folga real sem demorar bobagem pra perceber que a tag sumiu.
-ENTIDADE_TIMEOUT_S = 15
+# sempre. O ESP32 só transmite a cada ~3s, com 50% de chance de pular a vez
+# (ver INTERVALO_JANELA_MS no firmware) -- isso cria uma variação real no
+# intervalo entre transmissões (~3-9s típico, mas sequências de "azar"
+# acontecem: com 15s de timeout, ~3% de chance a cada checagem de dar 5
+# pulos seguidos e a entidade "piscar" pra seguro sem ninguém ter saído do
+# lugar). 30s deixa essa chance bem mais rara (~0.1%) sem demorar bobagem
+# pra perceber uma tag desligada de verdade.
+ENTIDADE_TIMEOUT_S = 30
 
 # ---- Flask ----
 FLASK_HOST = "0.0.0.0"
