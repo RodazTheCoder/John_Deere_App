@@ -40,7 +40,8 @@
   .rig{
     display:flex;
     flex-direction:column;
-    height:100vh;
+    height:100vh;   /* fallback pra navegadores sem suporte a dvh */
+    height:100dvh;  /* evita a barra de endereço do navegador (Safari/tablet) cortar o rodapé (.demo-strip) */
     width:100vw;
   }
 
