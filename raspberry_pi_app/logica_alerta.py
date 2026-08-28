@@ -83,6 +83,23 @@ def calcular_alerta(entidades, deteccoes, camera_online, distancia_verde_m=None,
     dist = entidade["distancia_m"]
     tipo = entidade["tipo"]
 
+    # Detecção visual é a evidência mais forte que existe -- a câmera só
+    # enxerga dentro do alcance real dela (ALCANCE_CAMERA_M), então
+    # "detectando" já significa perto de verdade, mesmo que a distância
+    # calculada da entidade LoRa diga o contrário (RSSI impreciso, ou pode
+    # até ser outra pessoa não rastreada que entrou na área, não
+    # necessariamente a entidade registrada). Checado antes dos limiares de
+    # distância de propósito -- confirmação visual nunca deve ser ignorada.
+    if camera_detectando:
+        return {
+            "nivel": CRITICO_CONFIRMADO,
+            "distancia_m": dist,
+            "tipo_entidade": tipo,
+            "led": {"cor": "vermelho", "piscando": False},
+            "som": {"estado": "continuo"},
+            "mensagem": f"Confirmado visualmente ({dist:.0f} m reportado pela entidade)",
+        }
+
     if dist > distancia_verde_m:
         return {
             "nivel": SEGURO,
@@ -94,9 +111,6 @@ def calcular_alerta(entidades, deteccoes, camera_online, distancia_verde_m=None,
         }
 
     if dist > distancia_amarelo_m:
-        # fora do alcance realista da câmera — uma confirmação visual aqui
-        # não existe e não mudaria o nível mesmo que existisse (ver caso do
-        # trator confirmado a 60m no contexto do projeto).
         return {
             "nivel": ATENCAO,
             "distancia_m": dist,
@@ -104,18 +118,6 @@ def calcular_alerta(entidades, deteccoes, camera_online, distancia_verde_m=None,
             "led": {"cor": "amarelo", "piscando": False},
             "som": {"estado": "espacado"},
             "mensagem": f"Alerta a {dist:.0f} m — sem confirmação (fora do alcance)",
-        }
-
-    # dist <= distancia_amarelo_m: zona vermelha (esse limiar também representa
-    # o alcance assumido da câmera -- ver ALCANCE_CAMERA_M em config.py)
-    if camera_detectando:
-        return {
-            "nivel": CRITICO_CONFIRMADO,
-            "distancia_m": dist,
-            "tipo_entidade": tipo,
-            "led": {"cor": "vermelho", "piscando": False},
-            "som": {"estado": "continuo"},
-            "mensagem": f"Confirmado visualmente a {dist:.0f} m",
         }
 
     return {

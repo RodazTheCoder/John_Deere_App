@@ -56,17 +56,19 @@ class TestTabelaDeVerdade(unittest.TestCase):
         r = calcular_alerta({}, deteccao(), camera_online=True)
         self.assertEqual(r["nivel"], NAO_IDENTIFICADO)
 
-    def test_camera_detecta_e_ha_entidade_registrada_mesmo_que_distante_nao_fica_nao_identificado(self):
-        # limitação conhecida e aceita: sem correlação por ângulo, qualquer
-        # entidade registrada no LoRa "explica" a detecção da câmera, mesmo
-        # estando bem mais longe do que o alcance real da câmera.
+    def test_camera_detecta_com_entidade_distante_fica_critico_confirmado(self):
+        # decisão revista: detecção visual é a evidência mais forte que
+        # existe (a câmera só enxerga dentro do alcance real dela) -- uma
+        # entidade LoRa reportando distância maior não deve suprimir isso,
+        # porque pode ser a própria leitura de distância estar imprecisa, ou
+        # até ser outra pessoa não rastreada que entrou na área.
         r = calcular_alerta({"p1": entidade(63)}, deteccao(), camera_online=True)
-        self.assertEqual(r["nivel"], ATENCAO)
+        self.assertEqual(r["nivel"], CRITICO_CONFIRMADO)
 
-    def test_trator_confirmado_a_60m_nao_vira_vermelho(self):
-        # caso discutido: confirmação visual não aumenta o risco por si só
+    def test_trator_confirmado_a_60m_vira_vermelho(self):
+        # decisão revista -- ver test_camera_detecta_com_entidade_distante_fica_critico_confirmado
         r = calcular_alerta({"t1": entidade(60, tipo="trator")}, deteccao(), camera_online=True)
-        self.assertEqual(r["nivel"], ATENCAO)
+        self.assertEqual(r["nivel"], CRITICO_CONFIRMADO)
 
     def test_camera_offline_e_sinalizada_explicitamente(self):
         r = calcular_alerta({"p1": entidade(34)}, [], camera_online=False)
