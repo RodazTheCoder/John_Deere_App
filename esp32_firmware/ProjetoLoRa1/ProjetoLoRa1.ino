@@ -108,6 +108,17 @@ const double RAIO_TERRA_M = 6371000.0;
 const int LORA_RSSI_1M = -31;
 const float EXPOENTE_PERDA_AMBIENTE = 2.0;
 
+// RSSI varia bastante entre leituras mesmo na mesma posição física (reflexo,
+// orientação da antena, ruído de rádio) -- sem suavizar, a distância mostrada
+// no dashboard "pula" de um jeito que parece bug mas é só ruído normal de
+// sinal. Média móvel exponencial: quanto menor ALPHA, mais suave (mas mais
+// devagar pra reagir a uma mudança real de distância); quanto maior, mais
+// responsivo (mas mais ruidoso). Simplificação aceita: um cache global só,
+// não por entidade -- coerente com o projeto já assumir "uma entidade
+// prioritária por vez" em outros lugares.
+const float RSSI_ALPHA_SUAVIZACAO = 0.35;
+float distanciaRSSISuavizada = -1;
+
 // Limiares do LED/buzzer FÍSICO (camada de segurança local, só distância --
 // o ESP32 não tem câmera, então não dá pra diferenciar "pendente" de
 // "confirmado" aqui, fica sempre piscando no vermelho por segurança).
@@ -374,7 +385,13 @@ float calcularDistanciaGPS(double lat1, double lon1, double lat2, double lon2) {
 }
 
 float calcularDistanciaRSSI(int rssi) {
-  return pow(10.0, (LORA_RSSI_1M - rssi) / (10.0 * EXPOENTE_PERDA_AMBIENTE));
+  float bruta = pow(10.0, (LORA_RSSI_1M - rssi) / (10.0 * EXPOENTE_PERDA_AMBIENTE));
+  if (distanciaRSSISuavizada < 0) {
+    distanciaRSSISuavizada = bruta; // primeira leitura -- sem histórico pra suavizar ainda
+  } else {
+    distanciaRSSISuavizada = RSSI_ALPHA_SUAVIZACAO * bruta + (1 - RSSI_ALPHA_SUAVIZACAO) * distanciaRSSISuavizada;
+  }
+  return distanciaRSSISuavizada;
 }
 
 // Diagnóstico do GPS, independente de qualquer pacote LoRa -- sem isso, com
@@ -523,12 +540,13 @@ void loop() {
   }
 
   if (millis() - ultimoEnvio > INTERVALO_JANELA_MS) {
-    // sorteio simples pra várias placas não brigarem pelo mesmo canal o
-    // tempo todo — não é um protocolo de verdade (CSMA), só o suficiente
-    // pra poucos nós num protótipo. Reavaliar se o número de nós crescer.
-    if (random(0, 2) == 1) {
-      transmitirPosicao(minhaLat, minhaLon, minhaAlt, minhaVel, meuCurso);
-    }
+    // Com poucos nós (hoje: 2), transmite sempre -- o sorteio de 50% que
+    // existia aqui só fazia sentido pra evitar colisão com VÁRIOS nós no
+    // mesmo canal, mas deixava a atualização de distância lenta e instável
+    // (~6s de média, às vezes bem mais). Reavaliar (voltar a sortear, ou usar
+    // CSMA de verdade) se o número de nós crescer o suficiente pra colisão
+    // virar um problema real.
+    transmitirPosicao(minhaLat, minhaLon, minhaAlt, minhaVel, meuCurso);
     ultimoEnvio = millis();
   }
 
