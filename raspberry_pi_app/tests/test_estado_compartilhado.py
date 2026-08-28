@@ -2,6 +2,7 @@
 
 import os
 import sys
+import time
 import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -30,6 +31,29 @@ class TestEstadoCompartilhado(unittest.TestCase):
         entidades = self.estado.ler_entidades()
         self.assertNotIn("x1", entidades)
         self.assertIn("x2", entidades)
+
+    def test_ler_entidades_sem_timeout_devolve_tudo_mesmo_antiga(self):
+        self.estado.atualizar_entidade("x1", "pessoa", 10, 90)
+        self.estado._entidades["x1"]["ultimo_update"] = time.time() - 999
+        self.assertIn("x1", self.estado.ler_entidades())
+
+    def test_ler_entidades_com_timeout_esconde_entidade_velha(self):
+        self.estado.atualizar_entidade("x1", "pessoa", 10, 90)
+        self.estado._entidades["x1"]["ultimo_update"] = time.time() - 999
+        self.assertNotIn("x1", self.estado.ler_entidades(timeout_s=15))
+
+    def test_ler_entidades_com_timeout_mantem_entidade_recente(self):
+        self.estado.atualizar_entidade("x1", "pessoa", 10, 90)
+        self.assertIn("x1", self.estado.ler_entidades(timeout_s=15))
+
+    def test_modo_demo_comeca_desligado(self):
+        self.assertFalse(self.estado.modo_demo())
+
+    def test_modo_demo_liga_e_desliga(self):
+        self.estado.definir_modo_demo(True)
+        self.assertTrue(self.estado.modo_demo())
+        self.estado.definir_modo_demo(False)
+        self.assertFalse(self.estado.modo_demo())
 
 
 if __name__ == "__main__":

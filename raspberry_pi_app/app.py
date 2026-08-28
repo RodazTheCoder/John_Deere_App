@@ -11,6 +11,10 @@ from logica_alerta import calcular_alerta
 
 app = Flask(__name__)
 
+# Id fixo usado pelos botões de demo do dashboard (ver ENTIDADE_DEMO_ID em
+# dashboard.html -- tem que ser o mesmo valor dos dois lados).
+ENTIDADE_DEMO_ID = "demo-pessoa"
+
 
 @app.route("/")
 def index():
@@ -47,7 +51,16 @@ def snapshot():
 
 def _alerta_atual():
     camera_online = estado.camera_online(config.HEARTBEAT_TIMEOUT_S)
-    entidades = estado.ler_entidades()
+    todas_entidades = estado.ler_entidades(config.ENTIDADE_TIMEOUT_S)
+
+    # Modo demo ligado: só a entidade falsa dos botões conta (dado real de
+    # LoRa é ignorado). Modo demo desligado: só entidade real conta (clicar
+    # nos botões de demo não tem efeito nenhum). Nunca mistura os dois.
+    if estado.modo_demo():
+        entidades = {k: v for k, v in todas_entidades.items() if k == ENTIDADE_DEMO_ID}
+    else:
+        entidades = {k: v for k, v in todas_entidades.items() if k != ENTIDADE_DEMO_ID}
+
     deteccoes = estado.ler_deteccoes()
     alerta = calcular_alerta(entidades, deteccoes, camera_online)
     if estado.som_silenciado(alerta["nivel"]):
@@ -67,7 +80,21 @@ def status():
         "deteccoes": deteccoes,
         "entidades": entidades,
         "alerta": alerta,
+        "modo_demo": estado.modo_demo(),
     })
+
+
+@app.route("/api/modo-demo", methods=["POST"])
+def modo_demo():
+    """Interruptor "Modo Demo" do dashboard. Ligado: só a entidade falsa dos
+    botões de demo conta (dado real do LoRa é ignorado). Desligado: só
+    entidade real conta. Nunca mistura mock com dado real -- sem isso, uma
+    tag desconectada podia "empatar" com um clique de demo e dar resultado
+    imprevisível."""
+    payload = request.get_json(silent=True) or {}
+    ativo = bool(payload.get("ativo", False))
+    estado.definir_modo_demo(ativo)
+    return jsonify({"ok": True, "modo_demo": ativo})
 
 
 @app.route("/api/alerta-fisico")

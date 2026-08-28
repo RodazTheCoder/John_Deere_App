@@ -47,6 +47,13 @@ ALCANCE_CAMERA_M = 40        # < 40m: alcance realista de detecção da câmera 
 # ---- Heartbeat (falha nunca deve ser silenciosa) ----
 HEARTBEAT_TIMEOUT_S = 5
 
+# Tempo sem atualização até uma entidade LoRa ser considerada "sumida" (ex:
+# desligou a tag física). Sem isso, o último dado recebido fica valendo pra
+# sempre. Maior que o heartbeat porque o ESP32 só transmite a cada ~3s, com
+# 50% de chance de pular a vez (ver INTERVALO_JANELA_MS no firmware) -- 15s
+# dá folga real sem demorar bobagem pra perceber que a tag sumiu.
+ENTIDADE_TIMEOUT_S = 15
+
 # ---- Flask ----
 FLASK_HOST = "0.0.0.0"
 # 5000 conflita no Mac com o AirPlay Receiver (System Settings > General > AirDrop & Handoff)

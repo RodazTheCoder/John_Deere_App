@@ -436,6 +436,8 @@
   }
   .demo-btn:hover{color:var(--text); border-color:#3A453F;}
   .demo-btn.on{color:var(--void); background:var(--text); border-color:var(--text);}
+  #modoDemoBtn{font-weight:700; letter-spacing:.03em;}
+  #modoDemoBtn.on{color:var(--void); background:var(--amber); border-color:var(--amber);}
 
   @media (max-width:860px){
     .main{grid-template-columns:1fr;}
@@ -551,11 +553,14 @@
   </div>
 
   <div class="demo-strip">
-    <span>Demo (sem ESP32) →</span>
-    <button class="demo-btn" data-s="safe">Seguro</button>
-    <button class="demo-btn" data-s="amber">Atenção (40–80m)</button>
-    <button class="demo-btn" data-s="critico">Crítico (25m) — teste dentro/fora da câmera</button>
-    <button class="demo-btn" data-s="unidentified">MÁXIMO — fique NA câmera (sem entidade)</button>
+    <button class="demo-btn" id="modoDemoBtn">MODO DEMO: DESLIGADO</button>
+    <span id="demoBotoes" style="display:flex; align-items:center; gap:8px;">
+      <span>→</span>
+      <button class="demo-btn" data-s="safe">Seguro</button>
+      <button class="demo-btn" data-s="amber">Atenção (40–80m)</button>
+      <button class="demo-btn" data-s="critico">Crítico (25m) — teste dentro/fora da câmera</button>
+      <button class="demo-btn" data-s="unidentified">MÁXIMO — fique NA câmera (sem entidade)</button>
+    </span>
   </div>
 
 </div>
@@ -648,6 +653,32 @@
 
   document.querySelectorAll('.demo-btn').forEach(btn=>{
     btn.addEventListener('click', ()=>applyScenario(btn.dataset.s));
+  });
+
+  // Modo Demo: interruptor explícito -- ligado, só a entidade falsa dos
+  // botões conta (dado real do LoRa é ignorado); desligado, só entidade real
+  // conta (botões ficam visualmente inertes). Nunca mistura os dois -- ver
+  // POST /api/modo-demo em app.py. Evita o problema de uma tag desconectada
+  // "brigar" com um clique de demo.
+  const modoDemoBtn = document.getElementById('modoDemoBtn');
+  const demoBotoes = document.getElementById('demoBotoes');
+  let modoDemoAtual = false;
+
+  function renderModoDemo(ativo){
+    modoDemoAtual = ativo;
+    modoDemoBtn.textContent = ativo ? 'MODO DEMO: LIGADO' : 'MODO DEMO: DESLIGADO';
+    modoDemoBtn.classList.toggle('on', ativo);
+    demoBotoes.style.opacity = ativo ? '1' : '.35';
+    demoBotoes.style.pointerEvents = ativo ? '' : 'none';
+  }
+
+  modoDemoBtn.addEventListener('click', async ()=>{
+    await fetch('/api/modo-demo', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ativo: !modoDemoAtual}),
+    });
+    pollStatusReal();
   });
 
   // ---------- STATUS REAL ----------
@@ -755,6 +786,7 @@
 
       dotPi.classList.toggle('off', !s.camera_online);
       dotEsp.classList.toggle('off', !s.esp_online);
+      renderModoDemo(!!s.modo_demo);
 
       if(!s.camera_online){
         camCaption.innerHTML = '<b>CÂMERA OFFLINE</b> — sem sinal do Raspberry Pi';

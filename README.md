@@ -210,6 +210,8 @@ Isso indica que o hotspot só está aceitando **1 cliente conectado por vez** (o
 
 O dashboard agora tem botões de demo que mandam uma entidade **falsa pro backend real** via `POST /api/entidade` (o mesmo endpoint que o ESP32 vai usar) — não é mock só no front-end, é `logica_alerta.py` calculando de verdade em cima de um dado simulado. Serve de **plano B pra demonstração** caso o GPS/ESP32 não funcione ao vivo: dá pra mostrar todos os níveis de alerta (inclusive interagindo com a câmera real — os botões "crítico" pedem pra você ficar dentro ou fora do quadro da câmera pra ver a diferença entre pendente/confirmado).
 
+**Interruptor "Modo Demo"**: com hardware real conectado (ESP32 de verdade transmitindo por LoRa), dado real e dado de demo podiam entrar em conflito (ex: uma tag desconectada ficava "grudada" no último valor, competindo com os botões). Agora existe um botão `MODO DEMO: LIGADO/DESLIGADO` que decide qual fonte conta — nunca mistura os dois (`POST /api/modo-demo`, filtrado em `app.py > _alerta_atual()`). Também foi corrigido o bug de entidade "grudada": `estado.ler_entidades()` agora aceita um timeout (`config.ENTIDADE_TIMEOUT_S = 15`) e esconde entidades que pararam de atualizar (ex: tag desligada), em vez de manter o último valor pra sempre.
+
 ### 4. Calibrar os parâmetros de distância por RSSI
 
 `LORA_RSSI_1M` e `EXPOENTE_PERDA_AMBIENTE`, marcados com `TODO CALIBRAR` no firmware — precisam de medição real em campo (ver seção do firmware acima).

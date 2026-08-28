@@ -29,6 +29,12 @@ class EstadoCompartilhado:
         # pra "desmutar". O LED nunca é afetado por isso, só o som.
         self._som_silenciado_nivel = None
 
+        # Modo demo: quando ativo, calcular_alerta só considera a entidade
+        # falsa dos botões de demo (id ENTIDADE_DEMO_ID); quando inativo, só
+        # considera entidades reais (do ESP32/LoRa de verdade). Nunca mistura
+        # os dois -- ver app.py > _alerta_atual().
+        self._modo_demo = False
+
     # ---- câmera ----
     def atualizar_frame(self, frame_jpeg, deteccoes):
         with self._lock:
@@ -61,9 +67,20 @@ class EstadoCompartilhado:
             }
             self._esp_ultimo_heartbeat = time.time()
 
-    def ler_entidades(self):
+    def ler_entidades(self, timeout_s=None):
+        """Sem `timeout_s`, devolve tudo (inclusive entidades velhas) --
+        usado nos testes. Com `timeout_s`, filtra entidades que não
+        atualizam há mais tempo que isso (ex: tag desligada) -- é o que
+        `app.py` usa de verdade, pra uma tag desconectada não ficar
+        "grudada" no último valor pra sempre."""
         with self._lock:
-            return dict(self._entidades)
+            if timeout_s is None:
+                return dict(self._entidades)
+            agora = time.time()
+            return {
+                eid: dados for eid, dados in self._entidades.items()
+                if (agora - dados["ultimo_update"]) <= timeout_s
+            }
 
     def remover_entidade(self, entidade_id):
         with self._lock:
@@ -83,6 +100,15 @@ class EstadoCompartilhado:
     def som_silenciado(self, nivel):
         with self._lock:
             return self._som_silenciado_nivel == nivel
+
+    # ---- modo demo ----
+    def definir_modo_demo(self, ativo):
+        with self._lock:
+            self._modo_demo = bool(ativo)
+
+    def modo_demo(self):
+        with self._lock:
+            return self._modo_demo
 
 
 estado = EstadoCompartilhado()
