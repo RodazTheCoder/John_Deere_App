@@ -212,7 +212,10 @@ void atualizarAlertaFisico(float distanciaM) {
 // qualquer motivo, simplesmente não atualiza nada -- quem decide cair pro
 // modo local é o loop(), com base em há quanto tempo a última consulta OK.
 void consultarAlertaPi() {
-  if (WiFi.status() != WL_CONNECTED) return;
+  if (WiFi.status() != WL_CONNECTED) {
+    Serial.println("[alerta-pi] WiFi desconectado, nao consultou");
+    return;
+  }
 
   HTTPClient http;
   http.begin(PI_ALERTA_URL);
@@ -228,7 +231,16 @@ void consultarAlertaPi() {
       somAlertaPi = resposta.substring(p2 + 1);
       somAlertaPi.trim();
       ultimoAlertaPiOk = millis();
+      Serial.print("[alerta-pi] OK: ");
+      Serial.println(resposta);
+    } else {
+      Serial.print("[alerta-pi] resposta em formato inesperado: ");
+      Serial.println(resposta);
     }
+  } else {
+    Serial.print("[alerta-pi] FALHOU, codigo=");
+    Serial.println(codigo);
+    if (codigo < 0) Serial.println(http.errorToString(codigo));
   }
   http.end();
 }
