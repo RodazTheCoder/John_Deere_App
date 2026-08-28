@@ -50,6 +50,11 @@ def _alerta_atual():
     entidades = estado.ler_entidades()
     deteccoes = estado.ler_deteccoes()
     alerta = calcular_alerta(entidades, deteccoes, camera_online)
+    if estado.som_silenciado(alerta["nivel"]):
+        # Silenciado pelo operador pra esse nível específico -- vale pro
+        # dashboard E pro buzzer físico (ambos leem esse mesmo campo). O LED
+        # não é tocado aqui, continua refletindo a situação real.
+        alerta = {**alerta, "som": {"estado": "silenciado"}}
     return camera_online, entidades, deteccoes, alerta
 
 
@@ -100,6 +105,17 @@ def remover_entidade(entidade_id):
     """Usado pelo botão de demo do dashboard, pra simular a entidade LoRa
     sumindo (ex: estado "não identificado", sem nenhum registro)."""
     estado.remover_entidade(entidade_id)
+    return jsonify({"ok": True})
+
+
+@app.route("/api/silenciar", methods=["POST"])
+def silenciar():
+    """Botão SILENCIAR/RECONHECER do dashboard. Silencia o som -- no
+    dashboard E no buzzer físico do ESP32, já que os dois leem o mesmo
+    `alerta["som"]` -- até o nível de alerta mudar de verdade. O LED nunca é
+    afetado por isso."""
+    _, _, _, alerta = _alerta_atual()
+    estado.silenciar_som(alerta["nivel"])
     return jsonify({"ok": True})
 
 

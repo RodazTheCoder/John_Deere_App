@@ -22,6 +22,13 @@ class EstadoCompartilhado:
         self._entidades = {}  # id -> {"tipo": "pessoa"|"trator", "distancia_m", "angulo_deg", "ultimo_update"}
         self._esp_ultimo_heartbeat = None
 
+        # Botão de silenciar/reconhecer do dashboard -- guarda PRA QUAL nível
+        # o som foi silenciado, não só um booleano. Assim, quando o nível
+        # mudar de verdade, o silêncio deixa de valer sozinho (comparação
+        # simplesmente para de bater), sem precisar de nenhuma ação extra
+        # pra "desmutar". O LED nunca é afetado por isso, só o som.
+        self._som_silenciado_nivel = None
+
     # ---- câmera ----
     def atualizar_frame(self, frame_jpeg, deteccoes):
         with self._lock:
@@ -67,6 +74,15 @@ class EstadoCompartilhado:
             if self._esp_ultimo_heartbeat is None:
                 return False
             return (time.time() - self._esp_ultimo_heartbeat) <= timeout_s
+
+    # ---- silenciar/reconhecer ----
+    def silenciar_som(self, nivel):
+        with self._lock:
+            self._som_silenciado_nivel = nivel
+
+    def som_silenciado(self, nivel):
+        with self._lock:
+            return self._som_silenciado_nivel == nivel
 
 
 estado = EstadoCompartilhado()

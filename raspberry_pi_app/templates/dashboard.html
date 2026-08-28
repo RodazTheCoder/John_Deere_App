@@ -600,7 +600,6 @@
   const dotEsp = document.getElementById('dotEsp');
 
   let currentScenarioKey = 'safe';
-  let soundMuted = false;
 
   // Botões de demo mandam uma entidade FALSA pro mesmo endpoint que o ESP32
   // vai usar (POST /api/entidade) — não é um mock só no front-end, é o
@@ -685,25 +684,36 @@
     });
   }
 
+  // O backend é a única fonte de verdade sobre o som (dashboard E buzzer
+  // físico leem o mesmo campo `alerta.som.estado` -- ver /api/silenciar em
+  // app.py) -- nenhum estado de "mudo" só no navegador.
   function atualizarAudio(som){
-    if(soundMuted && som.estado !== 'off'){
-      audioIcon.textContent = '🔇';
-      audioLabel.textContent = 'Som silenciado pelo operador';
+    const labelMap = {
+      off: 'Silêncio',
+      espacado: 'Bipe espaçado (~5s)',
+      continuo: 'Bipe contínuo',
+      urgente: 'Alarme contínuo — tom urgente',
+      silenciado: 'Som silenciado pelo operador',
+    };
+    audioIcon.textContent = (som.estado==='off' || som.estado==='silenciado') ? '🔇' : (soundIconMap[som.estado] || '🔈');
+    audioLabel.textContent = labelMap[som.estado] || som.estado;
+
+    if(som.estado === 'silenciado'){
       audioSub.textContent = 'LED continua ativo até a situação mudar';
       muteBtn.style.display = '';
       muteBtn.classList.add('muted');
       muteBtn.textContent = 'SOM SILENCIADO';
       muteBtn.disabled = true;
-      return;
+    } else if(som.estado === 'off'){
+      audioSub.textContent = '';
+      muteBtn.style.display = 'none';
+    } else {
+      audioSub.textContent = 'Toca até a distância mudar ou ser reconhecida';
+      muteBtn.style.display = '';
+      muteBtn.classList.remove('muted');
+      muteBtn.textContent = 'SILENCIAR SOM';
+      muteBtn.disabled = false;
     }
-    const labelMap = { off:'Silêncio', espacado:'Bipe espaçado (~5s)', continuo:'Bipe contínuo', urgente:'Alarme contínuo — tom urgente' };
-    audioIcon.textContent = soundIconMap[som.estado] || '🔈';
-    audioLabel.textContent = labelMap[som.estado] || som.estado;
-    audioSub.textContent = som.estado==='off' ? '' : 'Toca até a distância mudar ou ser reconhecida';
-    muteBtn.classList.remove('muted');
-    muteBtn.textContent = 'SILENCIAR SOM';
-    muteBtn.disabled = false;
-    muteBtn.style.display = som.estado==='off' ? 'none' : '';
   }
 
   function atualizarAlertaReal(alerta, entidades){
@@ -713,12 +723,20 @@
     atualizarRadar(entidades);
 
     if(nivelMudou){
-      soundMuted = false;
       alertBanner.classList.remove('acked');
       ackBtn.style.display = '';
       alertTxt.innerHTML = `${alerta.mensagem}<small>Câmera confirma presença sem tag LoRa correspondente</small>`;
       pushLogReal(alerta.nivel, alerta.mensagem);
       nivelAnterior = alerta.nivel;
+    }
+
+    const maxSilenciado = alerta.nivel === 'nao_identificado' && alerta.som.estado === 'silenciado';
+    if(maxSilenciado && !alertBanner.classList.contains('acked')){
+      alertBanner.classList.add('acked');
+      ackBtn.style.display = 'none';
+      const t = new Date().toLocaleTimeString('pt-BR');
+      alertTxt.innerHTML = `NÃO IDENTIFICADO — reconhecido pelo operador<small>Buzzer silenciado às ${t} · LED permanece ativo até a situação mudar</small>`;
+      if(eventLog.length){ eventLog[0].acked = true; renderLog(); }
     }
 
     atualizarAudio(alerta.som);
@@ -796,17 +814,9 @@
 
   const soundIconMap = { off:'🔇', espacado:'🔈', continuo:'🔊', urgente:'🚨' };
 
-  function muteSound(){
-    if(soundMuted) return;
-    soundMuted = true;
-    if(nivelAnterior === 'nao_identificado'){
-      alertBanner.classList.add('acked');
-      ackBtn.style.display = 'none';
-      const t = new Date().toLocaleTimeString('pt-BR');
-      alertTxt.innerHTML = `NÃO IDENTIFICADO — reconhecido pelo operador<small>Buzzer silenciado às ${t} · LED permanece ativo até a situação mudar</small>`;
-    }
-    if(eventLog.length){ eventLog[0].acked = true; renderLog(); }
-    pollStatusReal();
+  async function muteSound(){
+    await fetch('/api/silenciar', {method: 'POST'});
+    pollStatusReal(); // atualiza a tela na hora, sem esperar o próximo tick de 1s
   }
 
   muteBtn.addEventListener('click', muteSound);
