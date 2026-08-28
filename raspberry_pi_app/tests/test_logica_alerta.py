@@ -33,21 +33,21 @@ class TestTabelaDeVerdade(unittest.TestCase):
         r = calcular_alerta({}, [], camera_online=True)
         self.assertEqual(r["nivel"], SEGURO)
 
-    def test_acima_de_80m_fica_seguro(self):
+    def test_acima_de_100m_fica_seguro(self):
         r = calcular_alerta({"p1": entidade(142)}, [], camera_online=True)
         self.assertEqual(r["nivel"], SEGURO)
 
-    def test_entre_40_e_80m_fica_atencao(self):
+    def test_entre_50_e_100m_fica_atencao(self):
         r = calcular_alerta({"p1": entidade(63)}, [], camera_online=True)
         self.assertEqual(r["nivel"], ATENCAO)
         self.assertEqual(r["som"]["estado"], "espacado")
 
-    def test_abaixo_de_40m_sem_deteccao_fica_critico_pendente_piscando(self):
+    def test_abaixo_de_50m_sem_deteccao_fica_critico_pendente_piscando(self):
         r = calcular_alerta({"p1": entidade(34)}, [], camera_online=True)
         self.assertEqual(r["nivel"], CRITICO_PENDENTE)
         self.assertTrue(r["led"]["piscando"])
 
-    def test_abaixo_de_40m_com_deteccao_fica_critico_confirmado_solido(self):
+    def test_abaixo_de_50m_com_deteccao_fica_critico_confirmado_solido(self):
         r = calcular_alerta({"p1": entidade(27)}, deteccao(), camera_online=True)
         self.assertEqual(r["nivel"], CRITICO_CONFIRMADO)
         self.assertFalse(r["led"]["piscando"])

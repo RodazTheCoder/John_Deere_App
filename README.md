@@ -64,26 +64,26 @@ Qualquer ESP32+GPS+LoRa "solto" (sem Raspberry próprio, ex: tag de pessoa) apar
 
 A câmera **não mede distância** — só confirma "tem algo nessa área". Quem calcula distância é sempre o LoRa/GPS. O casamento entre os dois é por **presença/ausência**, não por correlação fina de ângulo (isso foi cogitado e descartado — exigiria bússola do trator + GPS preciso, pouco confiáveis sob dossel florestal).
 
-Alcance realista assumido pra câmera na floresta: **< 40m** (estimativa conservadora, ainda não validada em campo).
+Alcance realista assumido pra câmera na floresta: **< 50m** (estimativa conservadora, ainda não validada em campo).
 
 | Distância (LoRa) | Câmera detecta? | LED | Buzzer | Tablet |
 |---|---|---|---|---|
-| > 80 m | Fora de alcance (irrelevante) | Verde sólido | Silêncio | Radar normal |
-| 40–80 m | Fora do alcance da câmera | Amarelo sólido | Bipe espaçado (~5s) | "Alerta a X m — sem confirmação" |
-| < 40 m | Ainda não detectou | 🔴 Vermelho **piscando** | Bipe contínuo | "Risco crítico — aguardando confirmação visual" |
-| < 40 m | Detectou e confirmou | Vermelho sólido | Bipe contínuo | "Confirmado visualmente a X m" |
+| > 100 m | Fora de alcance (irrelevante) | Verde sólido | Silêncio | Radar normal |
+| 50–100 m | Fora do alcance da câmera | Amarelo sólido | Bipe espaçado (~5s) | "Alerta a X m — sem confirmação" |
+| < 50 m | Ainda não detectou | 🔴 Vermelho **piscando** | Bipe contínuo | "Risco crítico — aguardando confirmação visual" |
+| < 50 m | Detectou e confirmou | Vermelho sólido | Bipe contínuo | "Confirmado visualmente a X m" |
 | Qualquer (câmera detecta, LoRa sem nenhum registro) | — | 🔴 Vermelho sólido direto | Alarme contínuo, tom urgente | "NÃO IDENTIFICADO — AÇÃO IMEDIATA" |
 
 **Regra de ouro:** *"Detectar já significa estar perto"* — a vegetação bloqueia a visão a poucos metros, então qualquer detecção da câmera já é evidência de proximidade real.
 
 **Piscando vs. sólido:** piscando = alerta pendente, ainda há incerteza a resolver. Sólido = estado estável (seguro, ou já confirmado).
 
-Um detalhe não óbvio testado durante o desenvolvimento: uma entidade confirmada visualmente a 60m (além dos 40m assumidos de alcance da câmera) **não vira vermelho** — o risco real continua sendo o da distância (fica âmbar). A confirmação da câmera só adiciona certeza, nunca aumenta o nível de risco por si só. Isso já está coberto por teste automatizado (ver `logica_alerta.py`).
+Um detalhe não óbvio testado durante o desenvolvimento: uma entidade confirmada visualmente a 60m (além dos 50m assumidos de alcance da câmera) **não vira vermelho** — o risco real continua sendo o da distância (fica âmbar). A confirmação da câmera só adiciona certeza, nunca aumenta o nível de risco por si só. Isso já está coberto por teste automatizado (ver `logica_alerta.py`).
 
 ### Limitações conhecidas (aceitas por ora, não são bugs)
 
 - Só há câmera na traseira — pra frente e os lados, a única proteção é o LoRa.
-- Alcance da câmera é curto (<40m assumido) e não validado em campo.
+- Alcance da câmera é curto (<50m assumido) e não validado em campo.
 - **Uma entidade prioritária por vez** — o sistema não faz rastreamento multi-entidade (não resolve 2 tratores próximos simultaneamente). Hoje, qualquer entidade LoRa registrada "explica" uma detecção da câmera, mesmo que essa entidade esteja mais longe do que o alcance real da câmera — é uma simplificação aceita, não correlação fina.
 - Falha nunca deve ser silenciosa — precisa de heartbeat Pi ↔ ESP32; se um lado parar, o outro indica isso explicitamente (ex: "CÂMERA OFFLINE"), nunca fica quieto.
 
@@ -218,7 +218,7 @@ O dashboard agora tem botões de demo que mandam uma entidade **falsa pro backen
 
 ### 5. ~~LED físico + buzzer~~ ✅ Código pronto, falta a fiação real
 
-`configurarAlertaFisico()`/`atualizarAlertaFisico()` no firmware já fazem tudo: 3 LEDs (verde/amarelo/vermelho) + buzzer, com o vermelho piscando e o buzzer com bipe espaçado/contínuo dependendo da distância — usando os mesmos limiares (40m/80m) do painel, só que 100% local (nunca depende de Wi-Fi/Pi). Pinos definidos: `LED_VERDE_PIN=14, LED_AMARELO_PIN=27, LED_VERMELHO_PIN=26, BUZZER_PIN=13` (livres, sem conflito com LoRa/GPS: 4, 5, 16, 17, 18, 19, 21, 23; nem com os reservados do ESP32: flash 6-11, strapping/boot 0/2/12/15, só-entrada 34-39).
+`configurarAlertaFisico()`/`atualizarAlertaFisico()` no firmware já fazem tudo: 3 LEDs (verde/amarelo/vermelho) + buzzer, com o vermelho piscando e o buzzer com bipe espaçado/contínuo dependendo da distância — usando os mesmos limiares (50m/100m) do painel, só que 100% local (nunca depende de Wi-Fi/Pi). Pinos definidos: `LED_VERDE_PIN=14, LED_AMARELO_PIN=27, LED_VERMELHO_PIN=26, BUZZER_PIN=13` (livres, sem conflito com LoRa/GPS: 4, 5, 16, 17, 18, 19, 21, 23; nem com os reservados do ESP32: flash 6-11, strapping/boot 0/2/12/15, só-entrada 34-39).
 
 Além disso, quando o Pi está acessível, o ESP32 consulta `GET /api/alerta-fisico` a cada 1s e o LED/buzzer passam a refletir a lógica **cruzada** (câmera + LoRa, igual ao dashboard — inclusive o vermelho "confirmado" sólido, que o modo local sozinho não consegue mostrar). Se o Pi não responder por 5s, cai automaticamente de volta pro modo local.
 
@@ -245,7 +245,7 @@ rsync -avz --progress --exclude 'venv' --exclude '__pycache__' /caminho/do/proje
 
 - Alcance real do LoRa sob dossel de eucalipto
 - Precisão do GPS sob copa densa
-- Alcance real de detecção da câmera (a estimativa de <40m é conservadora, nunca testada de verdade)
+- Alcance real de detecção da câmera (a estimativa de <50m é conservadora, nunca testada de verdade)
 
 ### 8. Ainda não decidido / fora de escopo por ora
 

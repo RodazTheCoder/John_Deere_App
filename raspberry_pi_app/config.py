@@ -40,9 +40,9 @@ MODELO_PATH = os.path.join(RAIZ_PROJETO, "yolov8n_ncnn_model")
 # README.md, seção "Pendências > Raspberry Pi como ponto de acesso WiFi").
 
 # ---- Tabela de verdade (distâncias) ----
-DISTANCIA_VERDE_M = 80       # > 80m: seguro
-DISTANCIA_AMARELO_M = 40     # 40-80m: atenção, fora do alcance da câmera
-ALCANCE_CAMERA_M = 40        # < 40m: alcance realista de detecção da câmera na floresta
+DISTANCIA_VERDE_M = 100      # > 100m: seguro
+DISTANCIA_AMARELO_M = 50     # 50-100m: atenção, fora do alcance da câmera
+ALCANCE_CAMERA_M = 50        # < 50m: alcance realista de detecção da câmera na floresta
 
 # ---- Heartbeat (falha nunca deve ser silenciosa) ----
 HEARTBEAT_TIMEOUT_S = 5

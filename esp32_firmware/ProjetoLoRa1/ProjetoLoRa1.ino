@@ -115,8 +115,8 @@ const float EXPOENTE_PERDA_AMBIENTE = 2.0;
 // raspberry_pi_app/config.py -- as duas camadas são independentes (o físico
 // nunca depende do Pi/Wi-Fi), mas usar os mesmos números evita a dashboard e
 // o LED discordando um do outro numa demonstração.
-const float DISTANCIA_VERDE_M = 80.0;
-const float DISTANCIA_AMARELO_M = 40.0;
+const float DISTANCIA_VERDE_M = 100.0;
+const float DISTANCIA_AMARELO_M = 50.0;
 
 const unsigned long BLINK_INTERVALO_MS = 500;
 const unsigned long BEEP_ESPACADO_INTERVALO_MS = 5000;

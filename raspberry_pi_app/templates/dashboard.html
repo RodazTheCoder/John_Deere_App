@@ -505,15 +505,15 @@
         <div class="semaphore">
           <div class="sem-row g" id="rowG">
             <span class="sem-led g"></span>
-            <div><div class="sem-text">Seguro</div><div class="sem-sub">&gt; 80 m</div></div>
+            <div><div class="sem-text">Seguro</div><div class="sem-sub">&gt; 100 m</div></div>
           </div>
           <div class="sem-row a" id="rowA">
             <span class="sem-led a"></span>
-            <div><div class="sem-text">Atenção</div><div class="sem-sub">40 – 80 m</div></div>
+            <div><div class="sem-text">Atenção</div><div class="sem-sub">50 – 100 m</div></div>
           </div>
           <div class="sem-row r" id="rowR">
             <span class="sem-led r" id="ledR"></span>
-            <div><div class="sem-text" id="rTextMain">Risco crítico</div><div class="sem-sub" id="rTextSub">&lt; 40 m</div></div>
+            <div><div class="sem-text" id="rTextMain">Risco crítico</div><div class="sem-sub" id="rTextSub">&lt; 50 m</div></div>
           </div>
         </div>
         <div class="distance-readout">
@@ -557,7 +557,7 @@
     <span id="demoBotoes" style="display:flex; align-items:center; gap:8px;">
       <span>→</span>
       <button class="demo-btn" data-s="safe">Seguro</button>
-      <button class="demo-btn" data-s="amber">Atenção (40–80m)</button>
+      <button class="demo-btn" data-s="amber">Atenção (50–100m)</button>
       <button class="demo-btn" data-s="critico">Crítico (25m) — teste dentro/fora da câmera</button>
       <button class="demo-btn" data-s="unidentified">MÁXIMO — fique NA câmera (sem entidade)</button>
     </span>
@@ -638,9 +638,9 @@
   }
 
   const demoAcoes = {
-    safe: () => definirEntidadeDemo(81, 200),
-    amber: () => definirEntidadeDemo(41, 79),
-    critico: () => definirEntidadeDemo(5, 39),
+    safe: () => definirEntidadeDemo(101, 220),
+    amber: () => definirEntidadeDemo(51, 99),
+    critico: () => definirEntidadeDemo(5, 49),
     unidentified: () => removerEntidadeDemo(),
   };
 
@@ -685,7 +685,7 @@
   const RADAR_ALCANCE_M = 160; // escala visual do radar — ajustar quando soubermos o alcance real do LoRa
   const severityMap = { seguro:'g', atencao:'a', critico_pendente:'r', critico_confirmado:'r', nao_identificado:'r', camera_offline:'n' };
   const rTextSubMap = {
-    seguro: '> 80 m', atencao: '40 – 80 m',
+    seguro: '> 100 m', atencao: '50 – 100 m',
     critico_pendente: 'aguardando confirmação visual',
     critico_confirmado: 'confirmado visualmente',
     nao_identificado: 'sem registro no LoRa',
@@ -702,7 +702,7 @@
       rowR.classList.add('active');
       ledR.classList.toggle('blink', nivel==='critico_pendente');
     }
-    rTextSub.textContent = rTextSubMap[nivel] || '< 40 m';
+    rTextSub.textContent = rTextSubMap[nivel] || '< 50 m';
     distNum.textContent = (distanciaM===null || distanciaM===undefined) ? '—' : Math.round(distanciaM);
   }
 
