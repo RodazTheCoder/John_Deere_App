@@ -65,14 +65,35 @@
   // (ALERTA_PI_TIMEOUT_MS), o LED cai sozinho de volta pro fallback local
   // (atualizarAlertaFisico, só distância) -- nunca fica sem alerta nenhum
   // só porque o Pi caiu ou o WiFi oscilou.
-  const unsigned long INTERVALO_CONSULTA_ALERTA_MS = 1000;
+  // consultarAlertaPi() é uma chamada HTTP bloqueante -- enquanto ela roda,
+  // o loop() não chama LoRa.parsePacket(), então qualquer pacote LoRa que
+  // chegar nesse meio tempo é perdido. Com INTERVALO_CONSULTA_ALERTA_MS
+  // curto (1s) e timeout HTTP alto, isso ficava roubando boa parte do tempo
+  // de escuta do trator (testado: só ele parava de receber da tag, a tag
+  // recebia normal, porque só ele tem essa chamada). 2s de intervalo ainda é
+  // responsivo pro LED físico e sobra bem mais tempo de escuta.
+  const unsigned long INTERVALO_CONSULTA_ALERTA_MS = 2000;
   const unsigned long ALERTA_PI_TIMEOUT_MS = 5000;
 
-  unsigned long ultimaConsultaAlerta = 0;
   unsigned long ultimoAlertaPiOk = 0;
-  String corAlertaPi = "";
+  // char[] fixo em vez de String de propósito -- essas variáveis são escritas
+  // pela tarefa de consulta ao Pi (core 0) e lidas pelo loop() principal
+  // (core 1, ver xTaskCreatePinnedToCore em setup()). String faz alocação
+  // dinâmica na hora de copiar, que não é seguro dentro da seção crítica que
+  // protege essa troca entre núcleos; char[] com strncpy não aloca nada.
+  char corAlertaPi[12] = "";
   bool piscandoAlertaPi = false;
-  String somAlertaPi = "";
+  char somAlertaPi[12] = "";
+  portMUX_TYPE alertaPiMux = portMUX_INITIALIZER_UNLOCKED;
+
+  // O hotspot do Pi às vezes recusa a primeira tentativa de associação (bug
+  // conhecido do driver WiFi onboard do Pi, não tem fix definitivo do lado
+  // dele) -- sem isso aqui, se o boot falhasse e nenhum pacote LoRa chegasse
+  // pra disparar o retry de enviarEntidadeProPi(), o trator ficava sem WiFi
+  // pra sempre até alguém resetar a placa manualmente. WiFi.begin() é
+  // assíncrono, então isso não trava o LED/buzzer enquanto tenta.
+  const unsigned long INTERVALO_RETRY_WIFI_MS = 10000;
+  unsigned long ultimaTentativaWiFi = 0;
 #endif
 
 // =====================================================================================
@@ -99,13 +120,13 @@ Preferences preferencias;
 
 const double RAIO_TERRA_M = 6371000.0;
 
-// ---- TODO CALIBRAR EM CAMPO (valores abaixo são chute, não medição) ----
-// Modelo de perda de sinal (RSSI -> distância), usado só quando não há fix
-// de GPS dos dois lados. Pra calibrar: colocar os dois nós a exatos 1m um do
-// outro e anotar o RSSI lido (isso vira LORA_RSSI_1M); depois medir RSSI em
-// 2-3 distâncias conhecidas (5m, 20m, 50m) e ajustar EXPOENTE_PERDA até a
-// curva estimada bater com a distância real.
-const int LORA_RSSI_1M = -31;
+// LORA_RSSI_1M calibrado de verdade com as duas placas a exatos 1m (testado
+// em campo: -54, -54, -58 dBm com SF9, média ~-55). Esse valor é específico
+// do SF atual (RSSI reportado pelo chip varia com o spreading factor) --
+// recalibrar se o SF mudar de novo. EXPOENTE_PERDA_AMBIENTE continua chute
+// (só temos 1 ponto de medição) -- ainda TODO CALIBRAR EM CAMPO com mais
+// distâncias conhecidas (5m, 20m, 50m) pra ajustar a curva de verdade.
+const int LORA_RSSI_1M = -55;
 const float EXPOENTE_PERDA_AMBIENTE = 2.0;
 
 // RSSI varia bastante entre leituras mesmo na mesma posição física (reflexo,
@@ -142,6 +163,15 @@ float distanciaMaisRecenteM = -1; // -1 = nenhum dado recebido ainda (fica tudo 
 
 unsigned long ultimoEnvio = 0;
 const unsigned long INTERVALO_JANELA_MS = 3000;
+// Variação aleatória somada ao intervalo acima (ver proximoIntervaloEnvioMs).
+// SF12 deixa cada pacote no ar por ~1-1.5s -- se os dois nós ligarem/resetarem
+// perto um do outro no tempo, ficam "em fase" e cada transmissão bate exatamente
+// em cima da anterior, colidindo sempre (não por acaso, de forma sistemática --
+// CRC falha e o pacote é descartado em silêncio). Sem esse jitter, dois nós que
+// nascem em fase nunca mais se dessincronizam sozinhos. Achado testando com
+// esboços isolados de TX-só e RX-só, que trocavam pacote perfeitamente.
+const unsigned long JITTER_ENVIO_MAX_MS = 700;
+unsigned long proximoIntervaloEnvioMs = INTERVALO_JANELA_MS;
 
 unsigned long ultimoDiagnosticoGPS = 0;
 const unsigned long INTERVALO_DIAGNOSTICO_GPS_MS = 2000;
@@ -168,14 +198,35 @@ void setup() {
     delay(500);
   }
   LoRa.setSyncWord(0x34);
-  LoRa.setSpreadingFactor(12);
+  // SF12 (era o valor anterior) deixava cada pacote ~3.3s no ar com o
+  // payload atual (~50 bytes) -- quase o intervalo inteiro entre
+  // transmissões (3s + jitter), fazendo as duas placas colidirem quase
+  // sempre, mesmo com jitter (testado: só ~10-15% dos pacotes chegavam).
+  // SF9 reduz isso pra ~0.5s no ar (bem menos alcance que SF12, mas ainda
+  // considerável), deixando bastante folga na janela pro jitter funcionar
+  // de verdade. Se precisar de mais alcance de novo (mata fechada, testado
+  // fora de ambiente urbano), subir o SF exige também aumentar
+  // INTERVALO_JANELA_MS proporcionalmente, senão a colisão volta.
+  LoRa.setSpreadingFactor(9);
   LoRa.setSignalBandwidth(125E3);
   LoRa.setCodingRate4(8);
   LoRa.enableCrc();
+  // Potência de transmissão reduzida (padrão da biblioteca é ~17dBm, no
+  // máximo) -- testado indoor: na potência máxima, o sinal chega "estourado"
+  // tanto perto quanto a alguns metros, e o RSSI vira reflexo de parede
+  // (multipath) em vez de refletir distância. Com menos potência, o sinal
+  // fica mais perto do limite de detecção e volta a variar de verdade com a
+  // distância real. Se for pra alcance de campo aberto de novo, subir isso
+  // (até uns 20 no pino PA_BOOST).
+  LoRa.setTxPower(5);
   Serial.println("--LoRa configurado--");
 
 #if TRATOR_COM_PI
   conectarWiFi();
+  // Core 0 -- deixa o core 1 (loop() padrão do Arduino) livre pra escutar o
+  // LoRa sem ser interrompido pela espera bloqueante do HTTPClient. Ver
+  // comentário grande em cima de consultarAlertaPi().
+  xTaskCreatePinnedToCore(tarefaConsultaAlertaPi, "consultaAlertaPi", 8192, NULL, 1, NULL, 0);
 #endif
 }
 
@@ -225,6 +276,12 @@ void atualizarAlertaFisico(float distanciaM) {
 // biblioteca de JSON de propósito, pra manter o firmware leve. Se falhar por
 // qualquer motivo, simplesmente não atualiza nada -- quem decide cair pro
 // modo local é o loop(), com base em há quanto tempo a última consulta OK.
+//
+// Roda numa tarefa própria no core 0 (ver tarefaConsultaAlertaPi/setup()),
+// separada do loop() principal (core 1, onde o LoRa é escutado). http.GET()
+// é bloqueante -- testado e confirmado que, rodando no mesmo núcleo/loop do
+// LoRa, essa espera roubava a janela de recepção com frequência suficiente
+// pra o trator nunca receber pacote nenhum da tag, mesmo a 1m de distância.
 void consultarAlertaPi() {
   if (WiFi.status() != WL_CONNECTED) {
     Serial.println("[alerta-pi] WiFi desconectado, nao consultou");
@@ -233,7 +290,7 @@ void consultarAlertaPi() {
 
   HTTPClient http;
   http.begin(PI_ALERTA_URL);
-  http.setTimeout(1500);
+  http.setTimeout(800);
   int codigo = http.GET();
   if (codigo == 200) {
     // formato: cor,piscando,som,verde_m,amarelo_m
@@ -243,15 +300,28 @@ void consultarAlertaPi() {
     int p3 = resposta.indexOf(',', p2 + 1);
     int p4 = resposta.indexOf(',', p3 + 1);
     if (p1 > 0 && p2 > p1 && p3 > p2 && p4 > p3) {
-      corAlertaPi = resposta.substring(0, p1);
-      piscandoAlertaPi = resposta.substring(p1 + 1, p2).toInt() == 1;
-      somAlertaPi = resposta.substring(p2 + 1, p3);
-      somAlertaPi.trim();
+      String cor = resposta.substring(0, p1);
+      bool piscando = resposta.substring(p1 + 1, p2).toInt() == 1;
+      String som = resposta.substring(p2 + 1, p3);
+      som.trim();
+      float verdeM = resposta.substring(p3 + 1, p4).toFloat();
+      float amareloM = resposta.substring(p4 + 1).toFloat();
+
+      // Seção crítica bem curta -- só cópia de bytes, sem alocação nem
+      // I/O -- pra não travar o outro núcleo por muito tempo.
+      portENTER_CRITICAL(&alertaPiMux);
+      strncpy(corAlertaPi, cor.c_str(), sizeof(corAlertaPi) - 1);
+      corAlertaPi[sizeof(corAlertaPi) - 1] = '\0';
+      piscandoAlertaPi = piscando;
+      strncpy(somAlertaPi, som.c_str(), sizeof(somAlertaPi) - 1);
+      somAlertaPi[sizeof(somAlertaPi) - 1] = '\0';
       // Atualiza o cache da escala do fallback local -- ver comentário
       // acima de DISTANCIA_VERDE_M. Só muda quando o Pi confirma de verdade.
-      DISTANCIA_VERDE_M = resposta.substring(p3 + 1, p4).toFloat();
-      DISTANCIA_AMARELO_M = resposta.substring(p4 + 1).toFloat();
+      DISTANCIA_VERDE_M = verdeM;
+      DISTANCIA_AMARELO_M = amareloM;
       ultimoAlertaPiOk = millis();
+      portEXIT_CRITICAL(&alertaPiMux);
+
       Serial.print("[alerta-pi] OK: ");
       Serial.println(resposta);
     } else {
@@ -264,6 +334,16 @@ void consultarAlertaPi() {
     if (codigo < 0) Serial.println(http.errorToString(codigo));
   }
   http.end();
+}
+
+// Tarefa própria (core 0) que só fica consultando o Pi em loop, sem nunca
+// competir por tempo de CPU com o loop() principal (core 1), que é onde o
+// LoRa precisa ser escutado com a maior frequência possível.
+void tarefaConsultaAlertaPi(void *parametro) {
+  for (;;) {
+    consultarAlertaPi();
+    vTaskDelay(pdMS_TO_TICKS(INTERVALO_CONSULTA_ALERTA_MS));
+  }
 }
 
 // Aciona o LED/buzzer com o alerta que já veio cruzado do Pi (câmera + LoRa)
@@ -344,9 +424,16 @@ void enviarEntidadeProPi(const String& id, const String& tipo, float distanciaM,
   corpo += "}";
 
   int codigo = http.POST(corpo);
+  Serial.print("[entidade->Pi] corpo=");
+  Serial.print(corpo);
+  Serial.print(" codigo=");
+  Serial.println(codigo);
   if (codigo <= 0) {
     Serial.print("Falha ao enviar pro Pi: ");
     Serial.println(http.errorToString(codigo));
+  } else if (codigo != 200) {
+    Serial.print("[entidade->Pi] Pi recusou, resposta: ");
+    Serial.println(http.getString());
   }
   http.end();
 }
@@ -452,7 +539,9 @@ void processarPacoteRecebido(double minhaLat, double minhaLon, bool meuGpsValido
   int p6 = mensagem.indexOf(',', p5 + 1);
 
   if (p1 < 0 || p2 < 0 || p3 < 0 || p4 < 0 || p5 < 0 || p6 < 0) {
-    Serial.println("Pacote LoRa com formato inesperado, ignorado.");
+    Serial.print("Pacote LoRa com formato inesperado, ignorado. Conteudo cru: '");
+    Serial.print(mensagem);
+    Serial.println("'");
     return;
   }
 
@@ -506,14 +595,36 @@ void loop() {
   // Sem delay() nenhum aqui -- LED/buzzer e a consulta ao Pi precisam rodar
   // todo loop pra animação de piscar/bipe não travar.
 #if TRATOR_COM_PI
-  if (millis() - ultimaConsultaAlerta > INTERVALO_CONSULTA_ALERTA_MS) {
-    consultarAlertaPi();
-    ultimaConsultaAlerta = millis();
+  // WL_DISCONNECTED especificamente (não "!= WL_CONNECTED" genérico) -- outros
+  // estados (WL_IDLE_STATUS etc.) podem significar que uma tentativa anterior
+  // ainda está em andamento no driver; chamar WiFi.begin() de novo nesse meio
+  // tempo gera erro "sta is connecting, cannot set config" (visto em teste) e
+  // ocupa o rádio bem na hora que o LoRa precisaria escutar. disconnect()
+  // antes de begin() garante estado limpo antes de tentar de novo.
+  if (WiFi.status() == WL_DISCONNECTED && millis() - ultimaTentativaWiFi > INTERVALO_RETRY_WIFI_MS) {
+    Serial.println("[wifi] desconectado, tentando reconectar em segundo plano...");
+    WiFi.disconnect();
+    WiFi.begin(WIFI_SSID, WIFI_SENHA); // assíncrono -- não bloqueia o loop
+    ultimaTentativaWiFi = millis();
   }
 
-  bool alertaPiValido = (ultimoAlertaPiOk != 0) && (millis() - ultimoAlertaPiOk < ALERTA_PI_TIMEOUT_MS);
+  // consultarAlertaPi() não é mais chamada aqui -- roda sozinha na tarefa do
+  // core 0 (tarefaConsultaAlertaPi, criada em setup()). Aqui só lê o
+  // resultado mais recente, com a mesma seção crítica curta usada lá.
+  char corLocal[12];
+  char somLocal[12];
+  bool piscandoLocal;
+  unsigned long ultimoOkLocal;
+  portENTER_CRITICAL(&alertaPiMux);
+  strncpy(corLocal, corAlertaPi, sizeof(corLocal));
+  strncpy(somLocal, somAlertaPi, sizeof(somLocal));
+  piscandoLocal = piscandoAlertaPi;
+  ultimoOkLocal = ultimoAlertaPiOk;
+  portEXIT_CRITICAL(&alertaPiMux);
+
+  bool alertaPiValido = (ultimoOkLocal != 0) && (millis() - ultimoOkLocal < ALERTA_PI_TIMEOUT_MS);
   if (alertaPiValido) {
-    atualizarAlertaFisicoComPi(corAlertaPi, piscandoAlertaPi, somAlertaPi);
+    atualizarAlertaFisicoComPi(corLocal, piscandoLocal, somLocal);
   } else {
     atualizarAlertaFisico(distanciaMaisRecenteM); // Pi não respondeu a tempo -- cai pro modo local sozinho
   }
@@ -539,15 +650,15 @@ void loop() {
     ultimoDiagnosticoGPS = millis();
   }
 
-  if (millis() - ultimoEnvio > INTERVALO_JANELA_MS) {
-    // Com poucos nós (hoje: 2), transmite sempre -- o sorteio de 50% que
-    // existia aqui só fazia sentido pra evitar colisão com VÁRIOS nós no
-    // mesmo canal, mas deixava a atualização de distância lenta e instável
-    // (~6s de média, às vezes bem mais). Reavaliar (voltar a sortear, ou usar
-    // CSMA de verdade) se o número de nós crescer o suficiente pra colisão
-    // virar um problema real.
+  if (millis() - ultimoEnvio > proximoIntervaloEnvioMs) {
+    // Com poucos nós (hoje: 2), transmite sempre -- não sorteia mais SE
+    // transmite (isso deixava a atualização de distância lenta e instável,
+    // ~6s de média). Em vez disso, sorteia QUANDO dentro da janela (jitter),
+    // pra dois nós que ligaram em fase não ficarem colidindo pra sempre --
+    // ver comentário de JITTER_ENVIO_MAX_MS acima.
     transmitirPosicao(minhaLat, minhaLon, minhaAlt, minhaVel, meuCurso);
     ultimoEnvio = millis();
+    proximoIntervaloEnvioMs = INTERVALO_JANELA_MS + random(0, JITTER_ENVIO_MAX_MS + 1);
   }
 
   if (LoRa.parsePacket()) {
