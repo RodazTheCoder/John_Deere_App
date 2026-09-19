@@ -12,6 +12,7 @@ from flask import Flask, jsonify, render_template
 
 try:
     import serial
+    import serial.tools.list_ports
 except ImportError:  # pragma: no cover - depende do ambiente de execução
     serial = None
 

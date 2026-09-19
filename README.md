@@ -22,28 +22,21 @@ py -m venv .venv
 pip install Flask pyserial
 ```
 
-2. Grave o ESP32 em modo centralizador editando o firmware no topo do arquivo:
-
-```cpp
-#define TRATOR_COM_PI 0
-#define MODULO_CENTRALIZADOR 1
-```
-
-3. Compile e envie o firmware para o ESP:
+2. Grave o ESP32 centralizador com o sketch próprio `esp32_firmware/Centralizador/` (não é preciso editar nenhum `#define`):
 
 ```powershell
-arduino-cli compile --fqbn esp32:esp32:esp32 esp32_firmware/ProjetoLoRa1
-arduino-cli upload -p COM3 --fqbn esp32:esp32:esp32 esp32_firmware/ProjetoLoRa1
+arduino-cli compile --fqbn esp32:esp32:esp32 esp32_firmware/Centralizador
+arduino-cli upload -p COM3 --fqbn esp32:esp32:esp32 esp32_firmware/Centralizador
 ```
 
-4. Inicie o dashboard centralizador:
+3. Inicie o dashboard centralizador:
 
 ```powershell
 cd centralizador_de_dados
 python app.py
 ```
 
-5. Acesse:
+4. Acesse:
 
 ```text
 http://localhost:5001
@@ -131,7 +124,9 @@ raspberry_pi_app/
 ├── templates/dashboard.html  Painel do operador
 └── tests/                    29 testes automatizados, sem depender de hardware
 
-esp32_firmware/ProjetoLoRa1/  Firmware único (GPS + LoRa + WiFi opcional)
+esp32_firmware/ProjetoLoRa1/  Firmware dos nós (GPS + LoRa + WiFi opcional)
+esp32_firmware/Centralizador/ Firmware do ESP32 centralizador (só recebe LoRa e repassa pela serial)
+centralizador_de_dados/       App Flask que lê a serial do centralizador e mostra o mapa (porta 5001)
 yolov8n_ncnn_model/           Modelo exportado (YOLOv8n → NCNN, imgsz=320 fixo)
 docs/configurar_pi_como_ap.md Guia de configuração do hotspot do Pi
 ```
@@ -318,40 +313,17 @@ Resposta esperada:
 
 ## Como configurar o ESP centralizador
 
-No firmware principal em `esp32_firmware/ProjetoLoRa1/ProjetoLoRa1.ino`, as configurações principais ficam no topo do arquivo:
+O centralizador tem sketch próprio em `esp32_firmware/Centralizador/Centralizador.ino`, separado do firmware dos nós (`ProjetoLoRa1`). Não há `#define` para configurar: ele só recebe pacotes LoRa e escreve cada um, cru, na serial USB (9600 baud). Não transmite, não usa GPS, WiFi nem LEDs.
 
-```cpp
-#define TIPO_ENTIDADE "trator"
-#define TRATOR_COM_PI 0
-#define MODULO_CENTRALIZADOR 1
-```
+### Regra importante
 
-### Regras de configuração
-
-- `MODULO_CENTRALIZADOR = 1`
-  - ativa o modo de recepção exclusiva do LoRa
-  - o módulo não transmite dados próprios por rádio
-  - ele apenas recebe todos os pacotes e envia pela serial para a dashboard
-- `TRATOR_COM_PI = 0`
-  - o ESP centralizador não usa WiFi nem Raspberry Pi
-  - ele fica isolado como gateway serial para o dashboard
-- `TIPO_ENTIDADE` pode ser `"trator"` ou `"pessoa"`, conforme o papel do nó
-
-### Exemplo de comportamento esperado no firmware
-
-Quando `MODULO_CENTRALIZADOR` for `1`, o firmware deve:
-
-- iniciar a serial do ESP
-- inicializar o LoRa em modo de recepção
-- escutar pacotes recebidos
-- filtrar mensagens internas de debug e GPS
-- enviar apenas o payload útil via `Serial.println(...)`
+Os parâmetros de rádio (915 MHz, sync word `0x34`, SF9, BW 125 kHz, CR 4/8, CRC) devem ser iguais nos dois sketches. Se um mudar e o outro não, os módulos deixam de se ouvir sem nenhum erro visível. O formato do pacote (`id,tipo,lat,lon,alt,vel,curso`) também deve coincidir.
 
 ### Compilar e gravar o firmware
 
 ```bash
-arduino-cli compile --fqbn esp32:esp32:esp32 esp32_firmware/ProjetoLoRa1
-arduino-cli upload -p COM3 --fqbn esp32:esp32:esp32 esp32_firmware/ProjetoLoRa1
+arduino-cli compile --fqbn esp32:esp32:esp32 esp32_firmware/Centralizador
+arduino-cli upload -p COM3 --fqbn esp32:esp32:esp32 esp32_firmware/Centralizador
 ```
 
 Atenção:
@@ -418,7 +390,7 @@ Isso acontece quando a linha recebida não bate com o formato esperado ou quando
 
 Soluções:
 
-- verificar se o firmware está em modo centralizador correto
+- verificar se o ESP está gravado com `esp32_firmware/Centralizador` e não com o firmware dos nós
 - garantir que as mensagens `[GPS]` e `AVISO` não sejam enviadas pela serial de telemetria
 - confirmar se o payload continua sendo `id,tipo,latitude,longitude,...` e não com texto extra
 - validar com um monitor serial simples antes de abrir o dashboard
@@ -428,7 +400,7 @@ Soluções:
 Possíveis causas:
 
 - ESP centralizador não está recebendo pacotes LoRa
-- `MODULO_CENTRALIZADOR` não foi ativado
+- o ESP não está gravado com o sketch `esp32_firmware/Centralizador`
 - a porta serial escolhida está errada
 - o payload foi descartado por estar em formato inválido
 - o Flask está rodando com reloader ativado e duplicando threads
@@ -459,21 +431,11 @@ app.run(host="0.0.0.0", port=5001, debug=False, use_reloader=False)
 
 Causa:
 
-- o firmware estava mandando logs de GPS e avisos para a mesma serial que transporta os dados do LoRa
+- o ESP foi gravado com o firmware dos nós (`ProjetoLoRa1`), que imprime logs de GPS na serial, em vez do sketch do centralizador
 
 Solução:
 
-- manter `MODULO_CENTRALIZADOR` em `1`
-- encapsular mensagens de diagnóstico com `#if !MODULO_CENTRALIZADOR`
-- deixar apenas o payload útil no stream serial
-
-Exemplo:
-
-```cpp
-#if !MODULO_CENTRALIZADOR
-  Serial.println("[GPS] ...");
-#endif
-```
+- regravar o ESP com `esp32_firmware/Centralizador`, que só escreve o payload útil na serial
 
 ### 6) Porta serial fica travada no Windows
 
@@ -490,7 +452,7 @@ Se a COM continuar bloqueada mesmo após encerrar o app, o problema está em out
 
 Antes de considerar o sistema funcionando:
 
-- [ ] o ESP centralizador está gravado com `MODULO_CENTRALIZADOR 1`
+- [ ] o ESP centralizador está gravado com o sketch `esp32_firmware/Centralizador`
 - [ ] a porta serial correta está sendo aberta pela aplicação
 - [ ] o app Flask foi iniciado com `debug=False` e `use_reloader=False`
 - [ ] o payload recebido está em CSV/JSON compatível com o parser
