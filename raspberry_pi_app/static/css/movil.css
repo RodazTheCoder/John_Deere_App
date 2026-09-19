@@ -1,0 +1,205 @@
+/* Layout de celular (uma vista por vez, menu inferior) */
+/* ---------- CELULAR: uma vista por vez + menu inferior ---------- */
+.mnav{display:none;}
+.ribbon .brand-sub{margin-left:0;}
+
+@media (max-width:860px), (max-height:520px) and (orientation:landscape){
+  .main{grid-template-columns:1fr;}
+  .tabs{display:none;}
+
+  .ribbon{min-height:48px; padding:env(safe-area-inset-top) 12px 0;}
+  .hide-m{display:none;}
+  :root{--nav-h:61px;}
+  .side .panel-block.pb-lista{
+    display:none; position:fixed; left:0; right:0;
+    bottom:calc(var(--nav-h) + env(safe-area-inset-bottom));
+    max-height:55vh; overflow-y:auto; z-index:20;
+    background:var(--panel); border-top:3px solid var(--deere-yellow);
+    box-shadow:0 -12px 30px rgba(0,0,0,.6);
+    text-align:left; padding:12px 14px 14px;
+  }
+  body.lista-aberta .side .panel-block.pb-lista{display:block;}
+  .pb-lista .panel-title{justify-content:flex-start; font-size:10.5px; margin-bottom:4px;}
+  .lista-fechar{
+    display:inline-block; margin-left:auto; padding:5px 10px;
+    font-family:var(--sans); font-size:10.5px; font-weight:700; letter-spacing:.06em;
+    color:var(--text-dim); background:none; border:1px solid var(--line); border-radius:5px; cursor:pointer;
+  }
+  /* linhas minimalistas: sem cartão, ponto colorido do nível, texto solto */
+  .pb-lista .ent-row{
+    background:none; border:none; border-bottom:1px solid var(--line-soft);
+    border-radius:0; padding:10px 2px; margin:0; gap:10px;
+  }
+  .pb-lista .ent-row:last-child{border-bottom:none;}
+  .pb-lista .ent-row::before{
+    content:""; width:9px; height:9px; border-radius:50%; flex-shrink:0; background:var(--text-faint);
+  }
+  .pb-lista .ent-row.g::before{background:var(--green);}
+  .pb-lista .ent-row.a::before{background:var(--amber);}
+  .pb-lista .ent-row.r::before{background:var(--red);}
+  .pb-lista .ent-ico{display:none;}
+  .pb-lista .ent-main{font-size:14px;}
+  .pb-lista .ent-sub .fonte{border:none; padding:0; font-size:10px;}
+  .pb-lista .ent-dist{font-size:17px;}
+  .ctx-line{cursor:pointer;}
+  .ctx-line:not(:empty)::after{content:" \203A";}
+  .conn-banner{padding:8px 12px; font-size:12px;}
+  .ribbon .brand b{font-size:13px; border-right:none; padding-right:0;}
+  .ribbon .brand-sub, .ribbon .brand-pre, .clock{display:none;}
+  .status-cluster{gap:6px;}
+  .status-chip{padding:4px 9px; font-size:10px; white-space:nowrap;}
+
+  /* menu inferior */
+  .mnav{
+    display:flex; flex-shrink:0;
+    background:var(--panel);
+    border-top:3px solid var(--deere-green);
+    padding-bottom:env(safe-area-inset-bottom);
+  }
+  .mnav button{
+    flex:1; position:relative;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px;
+    min-height:58px; padding:8px 2px;
+    background:none; border:none; cursor:pointer;
+    color:var(--text-dim);
+    font-family:var(--sans); font-size:10px; font-weight:700;
+    letter-spacing:.05em; text-transform:uppercase;
+    -webkit-tap-highlight-color:transparent;
+  }
+  .mnav button.active{color:var(--deere-yellow); box-shadow:inset 0 3px 0 var(--deere-yellow);}
+  .mnav svg{
+    width:23px; height:23px; fill:none; stroke:currentColor;
+    stroke-width:2; stroke-linecap:round; stroke-linejoin:round;
+  }
+  .mnav .mbadge{
+    position:absolute; top:5px; left:calc(50% + 6px);
+    font-family:var(--mono); font-size:9px; font-weight:700;
+    background:var(--deere-yellow); color:#1A2017;
+    border-radius:8px; padding:0 5px; min-width:15px; text-align:center;
+  }
+
+  /* qual bloco aparece em cada vista */
+  .camera-panel{display:none; min-height:0;}
+  body[data-mview="camera"] .camera-panel{display:flex;}
+  body[data-mview="camera"] .side{display:none;}
+  body[data-mview="hist"] .main, body[data-mview="ajustes"] .main{display:none;}
+
+  /* alerta crítico sempre visível no topo, em qualquer vista */
+  .alert-banner{order:-1;}
+  .alert-banner.show{height:78px;}
+  .alert-banner .txt{font-size:13.5px;}
+  .alert-banner .txt small{font-size:10px;}
+  .ack-btn{padding:12px 14px; font-size:12px;}
+
+  /* vista ALERTA: bloco fixo, sem rolagem, tudo centralizado.
+     O radar ocupa o espaço que sobra (flex) e se ajusta à altura do celular;
+     risco, distância e áudio têm tamanho próprio. */
+  body[data-mview="alerta"] .side{overflow:hidden;}
+  .side{transition:background .3s ease;}
+  body[data-risk="g"] .side{background:linear-gradient(180deg, var(--green-dim), var(--panel) 70%);}
+  body[data-risk="a"] .side{background:linear-gradient(180deg, var(--amber-dim), var(--panel) 70%);}
+  body[data-risk="r"] .side{background:linear-gradient(180deg, var(--red-dim), var(--panel) 70%);}
+  .side .panel-block{border-bottom:none; text-align:center;}
+  .panel-title{justify-content:center; margin-bottom:8px;}
+
+  .side .pb-radar{
+    flex:1 1 0; min-height:0; padding:8px 14px 2px;
+    display:flex; container-type:size;
+  }
+  .pb-radar .panel-title{display:none;}
+  .pb-radar .radar-wrap{flex:1; min-height:0; padding:0;}
+  .radar{width:min(72vw, 30vh, 320px); height:min(72vw, 30vh, 320px);}
+  @supports (width:1cqw){
+    .radar{width:min(100cqw, 100cqh); height:min(100cqw, 100cqh);}
+  }
+
+  /* risco e distância lado a lado: sobra mais altura pro radar */
+  .pb-risco{
+    flex:0 0 auto; padding:8px 14px 10px;
+    display:grid; grid-template-columns:1fr auto; align-items:center; gap:10px;
+  }
+  .pb-risco .panel-title, .pb-audio .panel-title{display:none;}
+  .semaphore{min-width:0;}
+  .sem-row:not(.active){display:none;}
+  .sem-row.active{padding:10px 12px; gap:10px; justify-content:flex-start; text-align:left;}
+  .sem-led{width:18px; height:18px;}
+  .sem-text{font-size:clamp(17px, 2.8vh, 21px);}
+  .sem-sub{font-size:11.5px; margin-top:2px;}
+  .distance-readout{margin:0; flex-direction:column; align-items:center; gap:3px;}
+  .distance-readout .num{font-size:clamp(40px, 7vh, 58px);}
+  .distance-readout .num::after{content:" m"; font-size:.38em; color:var(--text-dim); font-weight:600;}
+  .distance-readout .unit{display:none;}
+  .ctx-line{grid-column:1 / -1; margin:0; text-align:center; font-size:11.5px;}
+
+  .pb-audio{flex:0 0 auto; padding:8px 14px 12px; border-top:1px solid var(--line);}
+  .audio-row{justify-content:center;}
+  .audio-text{text-align:left;}
+  .audio-sub{display:none;}
+  .audio-text #audioLabel{font-size:14.5px;}
+  .mute-btn{min-height:clamp(48px, 7vh, 58px); font-size:15px; margin-top:8px;}
+
+  /* tela cheia da câmera (botão no canto; o modo cobre o app todo) */
+  .cam-fs-btn{
+    display:flex; align-items:center; justify-content:center;
+    position:absolute; right:12px; bottom:12px; z-index:4;
+    width:46px; height:46px; color:var(--deere-yellow);
+    background:rgba(17,21,15,.78); border:1px solid rgba(255,222,0,.45); border-radius:9px; cursor:pointer;
+    -webkit-tap-highlight-color:transparent;
+  }
+  .cam-fs-btn svg{width:22px; height:22px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round;}
+  .cam-fs-btn .i-col{display:none;}
+  body.cam-full .cam-fs-btn .i-exp{display:none;}
+  body.cam-full .cam-fs-btn .i-col{display:block;}
+  body.cam-full .camera-panel{position:fixed; inset:0; z-index:60; display:flex !important; flex-direction:column; background:#000;}
+  body.cam-full .camera-view{flex:1;}
+  body.cam-full .cam-caption, body.cam-full .cam-label{display:none;}
+  body.cam-full .rec-chip{top:calc(env(safe-area-inset-top) + 12px);}
+  body.cam-full .cam-fs-btn{top:calc(env(safe-area-inset-top) + 12px); bottom:auto;}
+  body.cam-full .cam-risk{
+    display:flex !important; position:absolute; left:0; right:0; bottom:0; z-index:5;
+    padding-bottom:calc(9px + env(safe-area-inset-bottom));
+  }
+
+  /* faixa de nível de risco sob a câmera (só no celular) */
+  .cam-risk{
+    display:flex; align-items:center; gap:10px; flex-shrink:0;
+    padding:9px 14px; background:var(--panel-raised);
+    border-top:2px solid var(--line);
+    font-family:var(--sans); font-weight:700; font-size:15px; color:#fff;
+  }
+  .cam-risk .cr-led{width:14px; height:14px; border-radius:50%; background:var(--text-faint); flex-shrink:0;}
+  .cam-risk .cr-dist{margin-left:auto; font-family:var(--mono); font-size:17px; color:var(--deere-yellow);}
+  body[data-risk="g"] .cam-risk{background:var(--green-dim);} body[data-risk="g"] .cr-led{background:var(--green);}
+  body[data-risk="a"] .cam-risk{background:var(--amber-dim);} body[data-risk="a"] .cr-led{background:var(--amber);}
+  body[data-risk="r"] .cam-risk{background:var(--red-dim);} body[data-risk="r"] .cr-led{background:var(--red);}
+
+  /* vista CÂMERA: mostra o quadro inteiro (contain), sem cortar as laterais --
+     as caixas de detecção vêm desenhadas no próprio quadro, então cortar
+     poderia esconder uma pessoa na borda */
+  .cam-img{object-fit:contain;}
+  .cam-caption{height:auto; min-height:38px; padding:8px 14px; font-size:12px;}
+  .rec-chip, .cam-label{font-size:10px;}
+
+  /* vista HISTÓRICO */
+  body[data-mview="hist"] #viewPanel, body[data-mview="ajustes"] #viewPanel{flex:0 0 auto !important;}
+  #viewHistory, #viewEntidades{display:none !important;}
+  body[data-mview="hist"] #viewHistory{display:block !important;}
+  .history-view{padding:16px;}
+
+  /* vista AJUSTES (modo demo + escala), em blocos grandes */
+  .demo-strip{display:none;}
+  body[data-mview="ajustes"] .demo-strip{
+    display:flex; flex-direction:column; align-items:stretch; gap:16px;
+    flex:1; overflow-y:auto; padding:18px 16px; border-top:none;
+  }
+  .demo-strip span{font-size:10px;}
+  .demo-btn{padding:14px 14px; font-size:14px; min-height:50px; white-space:normal;}
+  #modoDemoBtn{font-size:15px; min-height:56px;}
+  .escala-group{flex-wrap:wrap;}
+  .escala-group > span{flex-basis:100%; margin-bottom:2px;}
+  .escala-group input{flex:1; width:auto !important; min-height:50px; font-size:16px !important;}
+  .escala-group .demo-btn{flex:1;}
+  #demoBotoes{flex-direction:column; align-items:stretch !important;}
+  #demoBotoes > span{display:none;}
+  #demoBotoes .demo-btn{text-align:left;}
+}

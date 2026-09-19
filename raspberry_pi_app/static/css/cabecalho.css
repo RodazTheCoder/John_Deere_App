@@ -1,0 +1,57 @@
+/* Cabecalho, chips de status, chip DEMO, banner de conexao e relogio */
+/* ---------- TOP RIBBON ---------- */
+.ribbon{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:0 22px;
+  min-height:54px;
+  padding-top:env(safe-area-inset-top);
+  background:linear-gradient(180deg, var(--deere-green) 0%, var(--deere-green-dark) 100%);
+  border-bottom:4px solid var(--deere-yellow);
+  flex-shrink:0;
+}
+.ribbon .brand{
+  font-family:var(--sans);
+  font-size:12.5px;
+  letter-spacing:0.08em;
+  color:rgba(255,255,255,0.82);
+  text-transform:uppercase;
+  display:flex; align-items:center; gap:10px;
+}
+.ribbon .brand b{
+  color:#fff; font-weight:700; font-size:15px; letter-spacing:0.12em;
+  padding-right:12px; border-right:2px solid var(--deere-yellow);
+}
+.status-cluster{display:flex; gap:10px; align-items:center;}
+.status-chip{
+  display:flex; align-items:center; gap:7px;
+  font-family:var(--mono); font-size:11px; color:#fff;
+  letter-spacing:0.05em;
+  background:rgba(0,0,0,0.25);
+  padding:5px 11px; border-radius:999px;
+}
+.dot{
+  width:8px;height:8px;border-radius:50%;
+  background:var(--deere-yellow); flex-shrink:0;
+  border:1px solid rgba(0,0,0,.3);
+}
+.dot.off{background:var(--red); box-shadow:0 0 0 0 rgba(255,92,77,.5); animation:pulseDot 1.4s infinite;}
+@keyframes pulseDot{
+  0%{box-shadow:0 0 0 0 rgba(255,92,77,.65);}
+  70%{box-shadow:0 0 0 6px rgba(255,92,77,0);}
+  100%{box-shadow:0 0 0 0 rgba(255,92,77,0);}
+}
+.demo-chip{background:var(--deere-yellow); color:#1A2017; font-weight:700; letter-spacing:.08em;}
+.conn-banner{
+  display:none; flex-shrink:0; align-items:center; gap:10px;
+  background:#3A3F36; color:#fff; border-bottom:3px solid var(--red);
+  padding:9px 18px; font-family:var(--sans); font-weight:700; font-size:13px; letter-spacing:.03em;
+}
+.conn-banner.show{display:flex;}
+.conn-banner small{margin-left:auto; font-family:var(--mono); font-weight:500; font-size:11px; color:var(--text-dim);}
+body.stale .side, body.stale .camera-panel{opacity:.4; filter:grayscale(.8);}
+.clock{
+  font-family:var(--mono); font-size:13px; color:var(--deere-yellow);
+  font-weight:600; letter-spacing:.06em; margin-left:6px;
+}

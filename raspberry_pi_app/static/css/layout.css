@@ -1,0 +1,11 @@
+/* Grade principal */
+/* ---------- MAIN GRID ---------- */
+.main{
+  flex:1;
+  display:grid;
+  grid-template-columns: 1fr 330px;
+  gap:1px;
+  background:var(--line);
+  overflow:hidden;
+  min-height:0;
+}

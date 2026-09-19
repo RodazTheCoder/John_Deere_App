@@ -1,0 +1,20 @@
+/* Audio e botao silenciar/reativar */
+.audio-row{
+  display:flex; align-items:center; gap:11px;
+}
+.audio-icon{font-size:20px; width:28px; text-align:center; flex-shrink:0;}
+.audio-text #audioLabel{font-family:var(--sans); font-size:13px; color:var(--text); font-weight:600;}
+.audio-sub{font-family:var(--mono); font-size:10px; color:var(--text-dim); margin-top:2px;}
+.mute-btn{
+  margin-top:12px; width:100%;
+  font-family:var(--sans); font-size:12px; font-weight:700;
+  color:#1A2017; background:var(--deere-yellow);
+  border:none; border-radius:6px;
+  padding:10px; cursor:pointer; letter-spacing:.06em;
+  transition:all .15s ease;
+}
+.mute-btn:hover{background:#FFE94D;}
+.mute-btn.muted{color:var(--text-faint); cursor:default; background:var(--panel-raised); border:1px solid var(--line);}
+.mute-btn.muted:hover{background:var(--panel-raised);}
+.mute-btn.reativar{color:var(--deere-yellow); background:none; border:2px solid var(--deere-yellow);}
+.mute-btn.reativar:hover{background:rgba(255,222,0,.12);}

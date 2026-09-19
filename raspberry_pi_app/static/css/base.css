@@ -1,0 +1,41 @@
+/* Variaveis de cor, reset e container principal */
+:root{
+  --deere-green:#367C2B;
+  --deere-green-dark:#285C20;
+  --deere-yellow:#FFDE00;
+  --void:#11150F;
+  --panel:#1A2017;
+  --panel-raised:#242B20;
+  --line:#333C2D;
+  --line-soft:#252D21;
+  --text:#F1F3EC;
+  --text-dim:#A6AE9C;
+  --text-faint:#6F7866;
+  --green:#5FC04A;
+  --green-dim:#1E3A19;
+  --amber:#FFDE00;
+  --amber-dim:#403A00;
+  --red:#FF5C4D;
+  --red-dim:#3D1712;
+  --hover-line:#4A5543;
+  --mono: 'IBM Plex Mono', ui-monospace, Menlo, Consolas, monospace;
+  --sans: 'IBM Plex Sans', 'Helvetica Neue', Arial, sans-serif;
+}
+
+*{margin:0;padding:0;box-sizing:border-box;}
+
+html,body{
+  height:100%;
+  background:var(--void);
+  color:var(--text);
+  font-family:var(--sans);
+  overflow:hidden;
+}
+
+.rig{
+  display:flex;
+  flex-direction:column;
+  height:100vh;   /* fallback pra navegadores sem suporte a dvh */
+  height:100dvh;  /* evita a barra de endereço do navegador (Safari/tablet) cortar o rodapé (.demo-strip) */
+  width:100vw;
+}

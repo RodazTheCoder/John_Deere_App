@@ -1,0 +1,43 @@
+/* Banner de alerta NAO IDENTIFICADO */
+/* ---------- ALERT BANNER ---------- */
+.alert-banner{
+  flex-shrink:0;
+  display:flex; align-items:center; gap:12px;
+  padding:0 20px;
+  height:0;
+  overflow:hidden;
+  background:var(--red);
+  transition:height .25s ease;
+}
+.alert-banner.show{height:56px;}
+.alert-banner .icon{
+  width:28px;height:28px;border-radius:50%;
+  background:rgba(0,0,0,0.25); color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font-size:15px; flex-shrink:0;
+  animation:pulseIcon 1s infinite;
+}
+@keyframes pulseIcon{ 50%{ transform:scale(1.12); } }
+@media (prefers-reduced-motion: reduce){ .alert-banner .icon{animation:none;} }
+.alert-banner .txt{
+  font-family:var(--sans); font-weight:700; font-size:15px; color:#fff;
+  letter-spacing:.03em;
+}
+.alert-banner .txt small{
+  display:block; font-family:var(--mono); font-weight:500; font-size:11px;
+  color:rgba(255,255,255,.85); letter-spacing:.02em; margin-top:1px;
+}
+.alert-banner .spacer{flex:1;}
+.ack-btn{
+  flex-shrink:0;
+  font-family:var(--sans); font-weight:700; font-size:12.5px;
+  color:#3D0906; background:var(--deere-yellow);
+  border:none; border-radius:6px; padding:9px 18px;
+  cursor:pointer; letter-spacing:.05em;
+  transition:background .15s ease;
+}
+.ack-btn:hover{background:#FFE94D;}
+.alert-banner.acked{background:#5A2A22;}
+.alert-banner.acked .icon{animation:none;}
+.alert-banner.acked .txt{color:#F3D9D6;}
+.alert-banner.acked .txt small{color:#D9A9A3;}

@@ -1,0 +1,52 @@
+/* Semaforo de risco e leitura de distancia */
+/* Semaphore */
+.semaphore{
+  display:flex; flex-direction:column; gap:8px;
+}
+.sem-row{
+  display:flex; align-items:center; gap:12px;
+  padding:9px 12px;
+  border-radius:6px;
+  background:var(--panel-raised);
+  border:1px solid var(--line);
+  border-left-width:5px;
+  opacity:.4;
+  transition:opacity .2s ease, border-color .2s ease, background .2s ease;
+}
+.sem-row.g{border-left-color:var(--green);}
+.sem-row.a{border-left-color:var(--amber);}
+.sem-row.r{border-left-color:var(--red);}
+.sem-row.active{opacity:1;}
+.sem-row.active.g{background:var(--green-dim); border-color:rgba(95,192,74,.5);}
+.sem-row.active.a{background:var(--amber-dim); border-color:rgba(255,222,0,.5);}
+.sem-row.active.r{background:var(--red-dim); border-color:rgba(255,92,77,.55);}
+.sem-led{width:13px;height:13px;border-radius:50%; flex-shrink:0;}
+.sem-led.g{background:var(--green);}
+.sem-led.a{background:var(--amber);}
+.sem-led.r{background:var(--red);}
+.sem-row.active .sem-led.g{box-shadow:0 0 10px rgba(95,192,74,.8);}
+.sem-row.active .sem-led.a{box-shadow:0 0 10px rgba(255,222,0,.8);}
+.sem-row.active .sem-led.r{box-shadow:0 0 10px rgba(255,92,77,.85);}
+.sem-row.active.r .sem-led.blink{animation:blink 0.85s step-start infinite;}
+@media (prefers-reduced-motion: reduce){ .sem-row.active.r .sem-led.blink{animation:none; opacity:.5;} }
+.sem-text{font-family:var(--sans); font-size:13px; color:var(--text); font-weight:600;}
+.sem-sub{font-family:var(--mono); font-size:10.5px; color:var(--text-dim); margin-top:1px;}
+
+.distance-readout{
+  margin-top:12px;
+  display:flex; align-items:baseline; gap:6px; flex-wrap:wrap;
+}
+.distance-readout .num{
+  font-family:var(--mono); font-size:40px; font-weight:700; line-height:1;
+  color:var(--deere-yellow);
+}
+.distance-readout .unit{
+  font-family:var(--mono); font-size:12px; color:var(--text-dim);
+}
+.distance-readout .fonte{
+  font-family:var(--mono); font-size:11px; font-weight:600; letter-spacing:.04em;
+  text-transform:uppercase; padding:2px 6px; border-radius:3px;
+  border:1px solid var(--line); color:var(--text-dim);
+}
+.distance-readout .fonte.gps{color:var(--green); border-color:var(--green-dim);}
+.distance-readout .fonte.rssi{color:var(--amber); border-color:var(--amber-dim);}

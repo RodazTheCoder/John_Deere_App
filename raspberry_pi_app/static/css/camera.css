@@ -1,0 +1,84 @@
+/* Painel da camera, deteccoes e faixa de risco */
+/* ---------- CAMERA PANEL ---------- */
+.camera-panel{
+  position:relative;
+  background:#070C06;
+  display:flex;
+  flex-direction:column;
+  min-height:0;
+}
+.camera-view{
+  flex:1;
+  position:relative;
+  background:
+    radial-gradient(ellipse at 50% 30%, #17280F 0%, #080D06 72%);
+  overflow:hidden;
+}
+.camera-view::before{
+  content:"";
+  position:absolute; inset:0;
+  background-image:
+    repeating-linear-gradient(0deg, rgba(255,255,255,0.025) 0px, rgba(255,255,255,0.025) 1px, transparent 1px, transparent 3px);
+  pointer-events:none;
+  opacity:.5;
+}
+
+.cam-img{
+  position:absolute; inset:0;
+  width:100%; height:100%;
+  object-fit:cover;
+  z-index:1;
+}
+
+.rec-chip{
+  position:absolute; top:16px; left:16px;
+  display:flex; align-items:center; gap:7px;
+  font-family:var(--mono); font-size:11px; letter-spacing:.08em;
+  color:#fff; background:rgba(17,21,15,0.75); padding:6px 12px 6px 10px;
+  border-radius:4px; border-left:3px solid var(--red);
+  z-index:3;
+}
+.rec-chip .reddot{width:7px;height:7px;border-radius:50%;background:var(--red); animation:pulseDot 1.2s infinite;}
+
+.cam-label{
+  position:absolute; top:16px; right:16px;
+  font-family:var(--mono); font-size:11px; color:var(--deere-yellow);
+  background:rgba(17,21,15,0.75); padding:6px 12px; border-radius:4px;
+  border:1px solid rgba(255,222,0,.35); z-index:3;
+  letter-spacing:.05em;
+}
+
+.detect-box{
+  position:absolute;
+  border:2px solid var(--amber);
+  border-radius:2px;
+  box-shadow:0 0 0 3000px rgba(0,0,0,0) inset;
+  transition:opacity .25s ease, border-color .25s ease;
+  z-index:2;
+}
+.detect-box::before{
+  content: attr(data-label);
+  position:absolute; top:-22px; left:-2px;
+  font-family:var(--mono); font-size:10.5px; font-weight:600;
+  color:var(--panel); background:var(--amber);
+  padding:2px 6px; border-radius:2px; white-space:nowrap;
+  letter-spacing:.03em;
+}
+.detect-box.confirmed{border-color:var(--green);}
+.detect-box.confirmed::before{background:var(--green); color:#062412;}
+.detect-box.unidentified{border-color:var(--red); animation:none;}
+.detect-box.unidentified::before{background:var(--red); color:#3d0d07;}
+.detect-box.hidden{opacity:0; pointer-events:none;}
+
+.cam-risk{display:none;}
+.cam-fs-btn{display:none;}
+.cam-caption{
+  height:36px; flex-shrink:0;
+  background:var(--panel);
+  border-top:2px solid var(--deere-green);
+  display:flex; align-items:center; padding:0 16px;
+  font-family:var(--mono); font-size:11.5px; color:var(--text-dim);
+  letter-spacing:.02em;
+  gap:8px;
+}
+.cam-caption b{color:var(--deere-yellow); font-weight:600;}

@@ -1,0 +1,34 @@
+/* Lista de entidades (aba do PC e gaveta do celular) */
+.pb-lista{display:none;}
+.ent-pc{display:grid; grid-template-columns:repeat(auto-fill, minmax(340px, 1fr)); gap:10px; align-items:start;}
+.ent-pc .ent-row{margin-bottom:0;}
+.ent-pc .ent-vazio{grid-column:1 / -1;}
+#entCount{margin-left:6px; color:var(--text-faint);}
+.lista-fechar{display:none;}
+.ent-row{
+  display:flex; align-items:center; gap:10px;
+  padding:8px 10px; margin-bottom:6px;
+  background:var(--panel-raised); border:1px solid var(--line);
+  border-left-width:5px; border-radius:6px;
+}
+.ent-row.g{border-left-color:var(--green);}
+.ent-row.a{border-left-color:var(--amber);}
+.ent-row.r{border-left-color:var(--red);}
+.ent-ico{
+  width:22px; height:22px; border-radius:50%; flex-shrink:0;
+  display:flex; align-items:center; justify-content:center; font-size:11px;
+}
+.ent-ico.person{background:var(--deere-yellow); color:#1A2017;}
+.ent-ico.tractor{background:var(--green); color:#062412;}
+.ent-main{flex:1; min-width:0; font-family:var(--sans); font-size:13px; font-weight:600; color:var(--text);}
+.ent-main small{font-family:var(--mono); font-size:10.5px; font-weight:400; color:var(--text-faint); margin-left:6px;}
+.ent-sub{font-family:var(--mono); font-size:10.5px; font-weight:400; color:var(--text-dim); margin-top:2px; display:flex; align-items:center; gap:6px; flex-wrap:wrap;}
+.ent-sub .fonte{
+  font-size:9.5px; font-weight:600; letter-spacing:.04em; text-transform:uppercase;
+  padding:1px 5px; border-radius:3px; border:1px solid var(--line); color:var(--text-dim);
+}
+.ent-sub .fonte.gps{color:var(--green); border-color:var(--green-dim);}
+.ent-sub .fonte.rssi{color:var(--amber); border-color:var(--amber-dim);}
+.ent-dist{font-family:var(--mono); font-size:19px; font-weight:700; color:var(--deere-yellow);}
+.ent-dist small{font-size:11px; color:var(--text-dim); font-weight:600;}
+.ent-vazio{font-family:var(--mono); font-size:11.5px; color:var(--text-faint);}

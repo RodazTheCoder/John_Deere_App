@@ -1,0 +1,63 @@
+/* Rosa dos ventos e pontos do radar */
+/* Radar */
+.radar-wrap{
+  display:flex; align-items:center; justify-content:center;
+  padding:6px 0 10px;
+}
+.radar{
+  position:relative;
+  width:238px; height:238px;
+  border-radius:50%;
+  background:radial-gradient(circle at 50% 50%, #142012 0%, #0B120A 100%);
+  border:2px solid var(--deere-green);
+  box-shadow:0 0 0 1px var(--line), 0 0 22px rgba(54,124,43,.25);
+}
+.ring{
+  position:absolute; border:1px solid var(--line); border-radius:50%;
+}
+.r1{inset:0;} .r2{inset:19%;} .r3{inset:38%;}
+.sweep{
+  position:absolute; inset:0; border-radius:50%;
+  background:conic-gradient(from 0deg, rgba(95,192,74,0.22), transparent 32%);
+  animation:spin 4s linear infinite;
+}
+@media (prefers-reduced-motion: reduce){ .sweep{animation:none;} }
+@keyframes spin{ to{ transform:rotate(360deg); } }
+
+.compass-label{
+  position:absolute; font-family:var(--mono); font-size:9.5px; color:var(--text-dim);
+  letter-spacing:.05em;
+}
+.cl-n{top:4px; left:50%; transform:translateX(-50%);}
+.cl-s{bottom:4px; left:50%; transform:translateX(-50%);}
+.cl-e{right:6px; top:50%; transform:translateY(-50%);}
+.cl-w{left:6px; top:50%; transform:translateY(-50%);}
+
+.own-tractor{
+  position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
+  width:22px; height:22px; border-radius:5px;
+  background:var(--deere-yellow); color:#1A2017;
+  display:flex; align-items:center; justify-content:center;
+  font-size:11px; z-index:3;
+  border:2px solid var(--deere-green);
+}
+
+.blip{
+  position:absolute;
+  width:15px; height:15px; margin-left:-7.5px; margin-top:-7.5px;
+  border-radius:50%;
+  display:flex; align-items:center; justify-content:center;
+  font-size:9px;
+  z-index:2;
+}
+.blip.person{
+  background:var(--deere-yellow); color:#1A2017;
+  box-shadow:0 0 0 3px rgba(255,222,0,0.22);
+}
+.blip.tractor{
+  background:var(--green); color:#062412;
+  box-shadow:0 0 0 3px rgba(95,192,74,0.25);
+}
+.blip.pending{ animation:blink 1s step-start infinite; }
+@keyframes blink{ 50%{ opacity:.15; } }
+@media (prefers-reduced-motion: reduce){ .blip.pending{animation:none; opacity:.55;} }

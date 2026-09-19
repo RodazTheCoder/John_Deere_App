@@ -1,0 +1,43 @@
+/* Historico de eventos */
+/* ---------- HISTORY VIEW ---------- */
+.history-view{
+  flex:1; overflow-y:auto;
+  padding:20px 28px;
+  background:var(--void);
+}
+.history-header{
+  display:flex; align-items:baseline; justify-content:space-between;
+  margin-bottom:16px; padding-bottom:10px;
+  border-bottom:2px solid var(--deere-green);
+}
+.history-header h2{
+  font-family:var(--sans); font-size:17px; color:#fff; font-weight:700;
+  letter-spacing:.02em;
+}
+.history-header span{
+  font-family:var(--mono); font-size:11px; color:var(--text-dim);
+}
+.log-entry{
+  display:flex; align-items:flex-start; gap:12px;
+  padding:11px 14px;
+  border-radius:6px;
+  background:var(--panel);
+  border:1px solid var(--line);
+  margin-bottom:6px;
+}
+.log-dot{
+  width:10px; height:10px; border-radius:50%; margin-top:4px; flex-shrink:0;
+}
+.log-dot.g{background:var(--green);}
+.log-dot.a{background:var(--amber);}
+.log-dot.r{background:var(--red);}
+.log-dot.n{background:var(--text-faint);}
+.log-body{flex:1;}
+.log-text{font-family:var(--sans); font-size:13px; color:var(--text);}
+.log-text b{font-weight:600;}
+.log-time{font-family:var(--mono); font-size:10.5px; color:var(--text-dim); margin-top:2px;}
+.log-ackpill{
+  font-family:var(--mono); font-size:9.5px; color:var(--deere-yellow);
+  background:var(--amber-dim); padding:2px 8px; border-radius:8px;
+  flex-shrink:0; align-self:center;
+}

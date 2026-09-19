@@ -1,0 +1,25 @@
+/* Faixa de controle do modo demo e escala */
+/* ---------- DEMO CONTROL (not part of final product) ---------- */
+.demo-strip{
+  flex-shrink:0;
+  display:flex; align-items:center; gap:8px;
+  padding:10px 16px;
+  background:#0B0E09;
+  border-top:2px solid var(--deere-green);
+  overflow-x:auto;
+}
+.demo-strip span{
+  font-family:var(--mono); font-size:9.5px; color:var(--text-dim);
+  text-transform:uppercase; letter-spacing:.1em; margin-right:4px; flex-shrink:0;
+}
+.demo-btn{
+  font-family:var(--sans); font-size:11.5px; font-weight:500;
+  color:var(--text-dim); background:var(--panel-raised);
+  border:1px solid var(--line); border-radius:5px;
+  padding:6px 12px; cursor:pointer; white-space:nowrap;
+  transition:all .15s ease;
+}
+.demo-btn:hover{color:#fff; border-color:var(--hover-line);}
+.demo-btn.on{color:#1A2017; background:var(--deere-green); border-color:var(--deere-green); color:#fff;}
+#modoDemoBtn{font-weight:700; letter-spacing:.03em;}
+#modoDemoBtn.on{color:#1A2017; background:var(--deere-yellow); border-color:var(--deere-yellow);}
