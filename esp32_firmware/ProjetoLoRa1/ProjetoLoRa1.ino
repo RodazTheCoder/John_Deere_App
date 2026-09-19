@@ -34,7 +34,12 @@
 // 1 SÓ no ESP32 fisicamente junto do Raspberry Pi. 0 em todos os outros
 // (tags de pessoa, outros tratores sem Pi). Usar 0/1 aqui, não true/false —
 // o pré-processador do Arduino nem sempre entende bool em #if.
-#define TRATOR_COM_PI 1
+#define TRATOR_COM_PI 0
+
+// 1 para um ESP32 centralizador, cujo papel é receber os pacotes LoRa de todos
+// os módulos no alcance e repassar os dados pela serial para a dashboard central.
+// Esse módulo não transmite dados próprios para o LoRa e não usa WiFi/Raspberry.
+#define MODULO_CENTRALIZADOR 1
 
 #if TRATOR_COM_PI
   #include <WiFi.h>
@@ -179,7 +184,7 @@ const unsigned long INTERVALO_DIAGNOSTICO_GPS_MS = 2000;
 String meuId;
 
 void setup() {
-  Serial.begin(115200);
+  Serial.begin(9600);
 
   gpsSerial.begin(GPS_BAUD, SERIAL_8N1, RXD2, TXD2);
 
@@ -220,6 +225,10 @@ void setup() {
   // (até uns 20 no pino PA_BOOST).
   LoRa.setTxPower(5);
   Serial.println("--LoRa configurado--");
+
+#if MODULO_CENTRALIZADOR
+  Serial.println("--Modo centralizador ativo: somente recepcao LoRa--");
+#endif
 
 #if TRATOR_COM_PI
   conectarWiFi();
@@ -489,6 +498,7 @@ float calcularDistanciaRSSI(int rssi) {
 // satélite. `satellites.value()` e `location.isValid()` mostram se já
 // conseguiu fix de verdade (normalmente precisa de céu aberto).
 void imprimirStatusGPS(bool valido, double lat, double lon) {
+#if !MODULO_CENTRALIZADOR
   Serial.print("[GPS] chars processados=");
   Serial.print(gps.charsProcessed());
   Serial.print(" satelites=");
@@ -504,6 +514,7 @@ void imprimirStatusGPS(bool valido, double lat, double lon) {
   if (gps.charsProcessed() < 10) {
     Serial.println("[GPS] AVISO: quase nada chegando do modulo -- checar fiacao/alimentacao (RX=16, TX=17).");
   }
+#endif
 }
 
 void transmitirPosicao(double lat, double lon, float alt, float vel, float curso) {
@@ -650,6 +661,20 @@ void loop() {
     ultimoDiagnosticoGPS = millis();
   }
 
+#if MODULO_CENTRALIZADOR
+  if (LoRa.parsePacket()) {
+    String mensagem = "";
+    while (LoRa.available()) {
+      mensagem += (char)LoRa.read();
+    }
+
+    if (mensagem.length() > 0) {
+      Serial.println(mensagem);
+      Serial.flush();
+    }
+  }
+  return;
+#else
   if (millis() - ultimoEnvio > proximoIntervaloEnvioMs) {
     // Com poucos nós (hoje: 2), transmite sempre -- não sorteia mais SE
     // transmite (isso deixava a atualização de distância lenta e instável,
@@ -664,4 +689,5 @@ void loop() {
   if (LoRa.parsePacket()) {
     processarPacoteRecebido(minhaLat, minhaLon, meuGpsValido);
   }
+#endif
 }
