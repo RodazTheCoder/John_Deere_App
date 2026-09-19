@@ -77,8 +77,13 @@ raspberry_pi_app/
 │   └── entidade_receiver.py  Valida o payload que o ESP32 manda por WiFi
 ├── deteccao/
 │   └── camera_worker.py      Thread de câmera: captura + YOLO/NCNN
-├── templates/dashboard.html  Painel do operador
-└── tests/                    29 testes automatizados, sem depender de hardware
+├── templates/
+│   ├── dashboard.html        Esqueleto da página (só monta as partes)
+│   └── partials/             Cabeçalho, câmera, painel lateral, alerta, histórico, entidades, demo, menu móvel
+├── static/
+│   ├── css/                  Estilos por área (base, câmera, radar, semáforo, celular, horizontal...)
+│   └── js/                   Scripts por área, carregados em ordem (ver dashboard.html)
+└── tests/                    36 testes automatizados, sem depender de hardware
 
 esp32_firmware/ProjetoLoRa1/  Firmware único (GPS + LoRa + WiFi opcional)
 yolov8n_ncnn_model/           Modelo exportado (YOLOv8n → NCNN, imgsz=320 fixo)
