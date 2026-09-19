@@ -99,6 +99,8 @@
   .conn-banner.show{display:flex;}
   .conn-banner small{margin-left:auto; font-family:var(--mono); font-weight:500; font-size:11px; color:var(--text-dim);}
   body.stale .side, body.stale .camera-panel{opacity:.4; filter:grayscale(.8);}
+  .ctx-line{font-family:var(--mono); font-size:11.5px; color:var(--text-dim); margin-top:8px;}
+  .ctx-line:empty{display:none;}
   .clock{
     font-family:var(--mono); font-size:13px; color:var(--deere-yellow);
     font-weight:600; letter-spacing:.06em; margin-left:6px;
@@ -584,6 +586,7 @@
     .distance-readout .num{font-size:clamp(40px, 7vh, 58px);}
     .distance-readout .num::after{content:" m"; font-size:.38em; color:var(--text-dim); font-weight:600;}
     .distance-readout .unit{display:none;}
+    .ctx-line{grid-column:1 / -1; margin:0; text-align:center; font-size:11.5px;}
 
     .pb-audio{flex:0 0 auto; padding:8px 14px 12px; border-top:1px solid var(--line);}
     .audio-row{justify-content:center;}
@@ -716,6 +719,7 @@
         <div class="distance-readout">
           <span class="num" id="distNum">142</span><span class="unit">metros — entidade mais próxima</span><span class="fonte" id="distFonte" style="display:none"></span>
         </div>
+        <div class="ctx-line" id="ctxLine"></div>
       </div>
 
       <div class="panel-block pb-audio">
@@ -985,6 +989,18 @@
     }
   }
 
+  // Direção só aparece quando vem de GPS: sem GPS (só RSSI) o ângulo não existe.
+  const DIRECOES = ['à frente','à frente, à direita','à direita','atrás, à direita','atrás','atrás, à esquerda','à esquerda','à frente, à esquerda'];
+  function atualizarContexto(e, total){
+    const el = document.getElementById('ctxLine');
+    if(!e){ el.textContent = ''; return; }
+    let txt = e.tipo==='trator' ? 'Trator' : 'Pessoa';
+    if(e.fonte==='rssi') txt += ' · direção indisponível (RSSI)';
+    else if(typeof e.angulo_deg==='number') txt += ' · ' + DIRECOES[Math.round((((e.angulo_deg%360)+360)%360)/45)%8];
+    if(total>1) txt += ' · +' + (total-1) + (total-1===1 ? ' outra' : ' outras');
+    el.textContent = txt;
+  }
+
   function atualizarRadar(entidades){
     clearBlips();
     Object.values(entidades||{}).forEach(e=>{
@@ -1035,6 +1051,7 @@
       : null;
     atualizarSemaforo(alerta.nivel, alerta.distancia_m, maisProxima ? maisProxima.fonte : null);
     atualizarRadar(entidades);
+    atualizarContexto(maisProxima, listaEntidades.length);
 
     if(nivelMudou){
       alertBanner.classList.remove('acked');
