@@ -27,151 +27,36 @@
 
 <div class="rig">
 
-  <div class="ribbon">
-    <div class="brand"><b><span class="brand-pre">CHALLENGE </span>JOHN DEERE</b><span class="brand-sub">· Detecção &amp; Prevenção de Colisão</span></div>
-    <div class="status-cluster">
-      <div class="status-chip demo-chip" id="demoChip" style="display:none"><span class="hide-m">MODO </span>DEMO</div>
-      <div class="status-chip"><span class="dot" id="dotPi"></span><span class="hide-m">RASPBERRY </span>PI</div>
-      <div class="status-chip"><span class="dot" id="dotEsp"></span>ESP32<span class="hide-m"> / LORA</span></div>
-      <div class="clock" id="clock">--:--:--</div>
-    </div>
-  </div>
-
-  <div class="conn-banner" id="connBanner">SEM CONEXÃO COM O PI — dados desatualizados<small id="connAge"></small></div>
-
-  <div class="tabs">
-    <button class="tab-btn active" data-view="panel">Painel</button>
-    <button class="tab-btn" data-view="history">Histórico <span class="badge" id="logBadge">1</span></button>
-    <button class="tab-btn" data-view="entidades">Entidades <span class="badge" id="entBadge">0</span></button>
-  </div>
+  {% include 'partials/cabecalho.html' %}
 
   <div id="viewPanel" style="display:flex; flex-direction:column; flex:1; min-height:0;">
   <div class="main">
 
-    <div class="camera-panel">
-      <div class="camera-view" id="cameraView">
-        <img class="cam-img" id="camImg" alt="Feed da câmera traseira">
-        <div class="rec-chip"><span class="reddot"></span>CÂMERA TRASEIRA · AO VIVO</div>
-        <div class="cam-label">320×320 · NCNN</div>
-        <button class="cam-fs-btn" id="camFsBtn" aria-label="Tela cheia da câmera">
-          <svg class="i-exp" viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
-          <svg class="i-col" viewBox="0 0 24 24"><path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"/></svg>
-        </button>
-      </div>
-      <div class="cam-risk" id="camRisk"><span class="cr-led"></span><span class="cr-text" id="camRiskTxt">Seguro</span><span class="cr-dist" id="camRiskDist">—</span></div>
-      <div class="cam-caption" id="camCaption"><b>Conectando</b>&nbsp;— aguardando primeiro quadro da câmera</div>
-    </div>
+    {% include 'partials/camera.html' %}
 
     <div class="side">
 
-      <div class="panel-block pb-radar">
-        <div class="panel-title">Rosa dos ventos</div>
-        <div class="radar-wrap">
-          <div class="radar" id="radar">
-            <div class="sweep"></div>
-            <div class="ring r1"></div>
-            <div class="ring r2"></div>
-            <div class="ring r3"></div>
-            <span class="compass-label cl-n">FRENTE</span>
-            <span class="compass-label cl-s">TRÁS</span>
-            <span class="compass-label cl-e">DIR</span>
-            <span class="compass-label cl-w">ESQ</span>
-            <div class="own-tractor">▲</div>
-            <!-- blips injected by JS -->
-          </div>
-        </div>
-      </div>
+      {% include 'partials/painel_radar.html' %}
 
-      <div class="panel-block pb-risco">
-        <div class="panel-title">Nível de risco</div>
-        <div class="semaphore">
-          <div class="sem-row g" id="rowG">
-            <span class="sem-led g"></span>
-            <div><div class="sem-text">Seguro</div><div class="sem-sub">&gt; 100 m</div></div>
-          </div>
-          <div class="sem-row a" id="rowA">
-            <span class="sem-led a"></span>
-            <div><div class="sem-text">Atenção</div><div class="sem-sub">50 – 100 m</div></div>
-          </div>
-          <div class="sem-row r" id="rowR">
-            <span class="sem-led r" id="ledR"></span>
-            <div><div class="sem-text" id="rTextMain">Risco crítico</div><div class="sem-sub" id="rTextSub">&lt; 50 m</div></div>
-          </div>
-        </div>
-        <div class="distance-readout">
-          <span class="num" id="distNum">142</span><span class="unit">metros — entidade mais próxima</span><span class="fonte" id="distFonte" style="display:none"></span>
-        </div>
-        <div class="ctx-line" id="ctxLine"></div>
-      </div>
+      {% include 'partials/painel_risco.html' %}
 
-      <div class="panel-block pb-audio">
-        <div class="panel-title">Áudio / Buzzer</div>
-        <div class="audio-row">
-          <span class="audio-icon" id="audioIcon">🔇</span>
-          <div class="audio-text">
-            <div id="audioLabel">Silêncio</div>
-            <div class="audio-sub" id="audioSub"></div>
-          </div>
-        </div>
-        <button class="mute-btn" id="muteBtn" style="display:none;">SILENCIAR SOM</button>
-      </div>
+      {% include 'partials/painel_audio.html' %}
 
-      <div class="panel-block pb-lista" id="pbLista">
-        <div class="panel-title">Entidades no alcance<span id="entCount"></span><button class="lista-fechar" id="listaFechar">FECHAR</button></div>
-        <div id="entList"><div class="ent-vazio">Nenhuma entidade no alcance</div></div>
-      </div>
+      {% include 'partials/painel_lista.html' %}
 
     </div>
   </div>
 
-  <div class="alert-banner" id="alertBanner">
-    <div class="icon">⚠</div>
-    <div class="txt" id="alertTxt">NÃO IDENTIFICADO — AÇÃO IMEDIATA<small>Câmera confirma presença sem tag LoRa correspondente</small></div>
-    <div class="spacer"></div>
-    <button class="ack-btn" id="ackBtn">RECONHECER</button>
-  </div>
+  {% include 'partials/alerta_banner.html' %}
   </div>
 
-  <div class="history-view" id="viewHistory" style="display:none;">
-    <div class="history-header">
-      <h2>Histórico de eventos</h2>
-      <span id="historyMeta">1 evento registrado nesta sessão</span>
-    </div>
-    <div id="logList"></div>
-  </div>
+  {% include 'partials/historico.html' %}
 
-  <div class="history-view" id="viewEntidades" style="display:none;">
-    <div class="history-header">
-      <h2>Entidades no alcance</h2>
-      <span id="entMeta">nenhuma no momento</span>
-    </div>
-    <div id="entListPC" class="ent-pc"></div>
-  </div>
+  {% include 'partials/entidades.html' %}
 
-  <div class="demo-strip">
-    <button class="demo-btn" id="modoDemoBtn">MODO DEMO: DESLIGADO</button>
-    <span class="escala-group" style="display:flex; align-items:center; gap:6px;">
-      <span style="font-family:var(--mono); font-size:9.5px; color:var(--text-faint); text-transform:uppercase; letter-spacing:.1em;">Escala (verde acima de, m) →</span>
-      <input type="number" id="escalaInput" placeholder="100" min="1" step="1"
-        style="width:70px; font-family:var(--mono); font-size:12px; background:var(--panel-raised); color:var(--text); border:1px solid var(--line); border-radius:4px; padding:6px 8px;">
-      <button class="demo-btn" id="escalaAplicarBtn">Aplicar</button>
-      <button class="demo-btn" id="escalaPadraoBtn">Padrão (100m)</button>
-    </span>
-    <span id="demoBotoes" style="display:flex; align-items:center; gap:8px;">
-      <span>→</span>
-      <button class="demo-btn" data-s="safe">Seguro</button>
-      <button class="demo-btn" data-s="amber" id="btnAmber">Atenção</button>
-      <button class="demo-btn" data-s="critico" id="btnCritico">Crítico — teste dentro/fora da câmera</button>
-      <button class="demo-btn" data-s="unidentified">MÁXIMO — fique NA câmera (sem entidade)</button>
-    </span>
-  </div>
+  {% include 'partials/demo.html' %}
 
-  <nav class="mnav" id="mnav">
-    <button data-mv="alerta" class="active"><svg viewBox="0 0 24 24"><path d="M12 3 2 20h20L12 3z"/><path d="M12 10v5M12 18h.01"/></svg>Alerta</button>
-    <button data-mv="camera"><svg viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="13" rx="2"/><circle cx="12" cy="13.5" r="3.5"/><path d="M8 7l1.5-3h5L16 7"/></svg>Câmera</button>
-    <button data-mv="hist"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Histórico<span class="mbadge" id="logBadgeM">1</span></button>
-    <button data-mv="ajustes"><svg viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg>Ajustes</button>
-  </nav>
+  {% include 'partials/menu_movil.html' %}
 
 </div>
 

@@ -1,0 +1,17 @@
+<div class="demo-strip">
+  <button class="demo-btn" id="modoDemoBtn">MODO DEMO: DESLIGADO</button>
+  <span class="escala-group" style="display:flex; align-items:center; gap:6px;">
+    <span style="font-family:var(--mono); font-size:9.5px; color:var(--text-faint); text-transform:uppercase; letter-spacing:.1em;">Escala (verde acima de, m) →</span>
+    <input type="number" id="escalaInput" placeholder="100" min="1" step="1"
+      style="width:70px; font-family:var(--mono); font-size:12px; background:var(--panel-raised); color:var(--text); border:1px solid var(--line); border-radius:4px; padding:6px 8px;">
+    <button class="demo-btn" id="escalaAplicarBtn">Aplicar</button>
+    <button class="demo-btn" id="escalaPadraoBtn">Padrão (100m)</button>
+  </span>
+  <span id="demoBotoes" style="display:flex; align-items:center; gap:8px;">
+    <span>→</span>
+    <button class="demo-btn" data-s="safe">Seguro</button>
+    <button class="demo-btn" data-s="amber" id="btnAmber">Atenção</button>
+    <button class="demo-btn" data-s="critico" id="btnCritico">Crítico — teste dentro/fora da câmera</button>
+    <button class="demo-btn" data-s="unidentified">MÁXIMO — fique NA câmera (sem entidade)</button>
+  </span>
+</div>
