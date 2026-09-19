@@ -90,6 +90,14 @@
     70%{box-shadow:0 0 0 6px rgba(255,92,77,0);}
     100%{box-shadow:0 0 0 0 rgba(255,92,77,0);}
   }
+  .conn-banner{
+    display:none; flex-shrink:0; align-items:center; gap:10px;
+    background:#3A3F36; color:#fff; border-bottom:3px solid var(--red);
+    padding:9px 18px; font-family:var(--sans); font-weight:700; font-size:13px; letter-spacing:.03em;
+  }
+  .conn-banner.show{display:flex;}
+  .conn-banner small{margin-left:auto; font-family:var(--mono); font-weight:500; font-size:11px; color:var(--text-dim);}
+  body.stale .side, body.stale .camera-panel{opacity:.4; filter:grayscale(.8);}
   .clock{
     font-family:var(--mono); font-size:13px; color:var(--deere-yellow);
     font-weight:600; letter-spacing:.06em; margin-left:6px;
@@ -646,6 +654,8 @@
     </div>
   </div>
 
+  <div class="conn-banner" id="connBanner">SEM CONEXÃO COM O PI — dados desatualizados<small id="connAge"></small></div>
+
   <div class="tabs">
     <button class="tab-btn active" data-view="panel">Painel</button>
     <button class="tab-btn" data-view="history">Histórico <span class="badge" id="logBadge">1</span></button>
@@ -1048,10 +1058,26 @@
     renderLog();
   }
 
+  // Conexão com o Pi: se o /api/status não responde (celular sem WiFi, Pi fora
+  // do ar), avisa e apaga os dados, pra ninguém confiar num "Seguro" velho.
+  let ultimoStatusOk = Date.now();
+  const connBanner = document.getElementById('connBanner');
+  const connAge = document.getElementById('connAge');
+  function marcarConexao(ok){
+    document.body.classList.toggle('stale', !ok);
+    connBanner.classList.toggle('show', !ok);
+    if(!ok) connAge.textContent = 'há ' + Math.round((Date.now() - ultimoStatusOk)/1000) + ' s';
+  }
+
   async function pollStatusReal(){
+    const ctl = new AbortController();
+    const timer = setTimeout(()=>ctl.abort(), 3000);
     try{
-      const r = await fetch('/api/status');
+      const r = await fetch('/api/status', {signal: ctl.signal});
       const s = await r.json();
+      clearTimeout(timer);
+      ultimoStatusOk = Date.now();
+      marcarConexao(true);
 
       dotPi.classList.toggle('off', !s.camera_online);
       dotEsp.classList.toggle('off', !s.esp_online);
@@ -1068,6 +1094,8 @@
 
       atualizarAlertaReal(s.alerta, s.entidades);
     }catch(e){
+      clearTimeout(timer);
+      marcarConexao(false);
       dotPi.classList.add('off');
       camCaption.innerHTML = '<b>SEM CONEXÃO</b> — não foi possível falar com o servidor';
     }
