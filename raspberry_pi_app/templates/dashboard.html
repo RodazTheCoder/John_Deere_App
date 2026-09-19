@@ -3,6 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#285C20">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="John Deere">
 <title>Painel do Operador — Sistema de Detecção</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -54,7 +59,8 @@
     align-items:center;
     justify-content:space-between;
     padding:0 22px;
-    height:54px;
+    min-height:54px;
+    padding-top:env(safe-area-inset-top);
     background:linear-gradient(180deg, var(--deere-green) 0%, var(--deere-green-dark) 100%);
     border-bottom:4px solid var(--deere-yellow);
     flex-shrink:0;
@@ -499,7 +505,8 @@
     .main{grid-template-columns:1fr;}
     .tabs{display:none;}
 
-    .ribbon{height:48px; padding:0 12px;}
+    .ribbon{min-height:48px; padding:env(safe-area-inset-top) 12px 0;}
+    .hide-m{display:none;}
     :root{--nav-h:61px;}
     .ribbon .brand b{font-size:13px; border-right:none; padding-right:0;}
     .ribbon .brand-sub, .ribbon .brand-pre, .clock{display:none;}
