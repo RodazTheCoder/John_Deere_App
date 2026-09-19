@@ -50,6 +50,7 @@ SERIAL_BAUD = int(os.getenv("CENTRALIZADOR_BAUD", "9600"))
 SERIAL_PORT = descobrir_porta_serial()
 
 VEICULOS: dict[str, dict[str, Any]] = {}
+ULTIMO_PACOTE_TS: float | None = None
 HISTORICO: dict[str, list[dict[str, Any]]] = {}
 
 _lock = threading.Lock()
@@ -170,8 +171,10 @@ def processar_entidade(payload: dict[str, Any]) -> None:
     veiculo = normalizar_entidade(payload)
     veiculo_id = veiculo["id"]
 
+    global ULTIMO_PACOTE_TS
     with _lock:
         VEICULOS[veiculo_id] = veiculo
+        ULTIMO_PACOTE_TS = time.time()
         adicionar_historico(veiculo_id, veiculo["latitude"], veiculo["longitude"])
 
 
@@ -221,15 +224,27 @@ def index():
 @app.route("/api/veiculos")
 def listar_veiculos():
     with _lock:
+        agora = time.time()
         veiculos = []
         for veiculo in VEICULOS.values():
-            veiculos.append({**veiculo, "historico": HISTORICO.get(veiculo["id"], [])})
+            veiculos.append({
+                **veiculo,
+                "segundos_sem_sinal": round(agora - veiculo["timestamp"], 1),
+                "historico": HISTORICO.get(veiculo["id"], []),
+            })
         return jsonify({"veiculos": veiculos})
 
 
 @app.route("/api/health")
 def healthcheck():
-    return jsonify({"ok": True, "veiculos_ativos": len(VEICULOS), "porta_serial": SERIAL_PORT})
+    desde_ultimo = None if ULTIMO_PACOTE_TS is None else round(time.time() - ULTIMO_PACOTE_TS, 1)
+    return jsonify({
+        "ok": True,
+        "veiculos_ativos": len(VEICULOS),
+        "porta_serial": SERIAL_PORT,
+        "serial_conectada": SERIAL_HANDLE is not None,
+        "segundos_desde_ultimo_pacote": desde_ultimo,
+    })
 
 
 if __name__ == "__main__":
