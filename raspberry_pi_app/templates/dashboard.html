@@ -286,6 +286,13 @@
   .distance-readout .unit{
     font-family:var(--mono); font-size:13px; color:var(--text-dim);
   }
+  .distance-readout .fonte{
+    font-family:var(--mono); font-size:11px; font-weight:600; letter-spacing:.04em;
+    text-transform:uppercase; padding:2px 6px; border-radius:3px;
+    border:1px solid var(--line); color:var(--text-dim);
+  }
+  .distance-readout .fonte.gps{color:var(--green); border-color:var(--green-dim);}
+  .distance-readout .fonte.rssi{color:var(--amber); border-color:var(--amber-dim);}
 
   .audio-row{
     display:flex; align-items:center; gap:11px;
@@ -517,7 +524,7 @@
           </div>
         </div>
         <div class="distance-readout">
-          <span class="num" id="distNum">142</span><span class="unit">metros — entidade mais próxima</span>
+          <span class="num" id="distNum">142</span><span class="unit">metros — entidade mais próxima</span><span class="fonte" id="distFonte" style="display:none"></span>
         </div>
       </div>
 
@@ -606,6 +613,7 @@
   const ledR = document.getElementById('ledR');
   const rTextSub = document.getElementById('rTextSub');
   const distNum = document.getElementById('distNum');
+  const distFonte = document.getElementById('distFonte');
   const camCaption = document.getElementById('camCaption');
   const alertBanner = document.getElementById('alertBanner');
   const dotPi = document.getElementById('dotPi');
@@ -752,7 +760,10 @@
 
   let nivelAnterior = null;
 
-  function atualizarSemaforo(nivel, distanciaM){
+  // "fonte" (gps/rssi) é só debug visual -- mostra de onde vem a distância
+  // exibida, nunca influencia o nível do alerta (ver comunicacao/entidade_receiver.py).
+  const fonteLabelMap = { gps: 'GPS', rssi: 'RSSI' };
+  function atualizarSemaforo(nivel, distanciaM, fonte){
     [rowG,rowA,rowR].forEach(r=>r.classList.remove('active'));
     ledR.classList.remove('blink');
     if(nivel==='seguro') rowG.classList.add('active');
@@ -763,6 +774,13 @@
     }
     rTextSub.textContent = rTextSubMap[nivel] || rTextSubFallback;
     distNum.textContent = (distanciaM===null || distanciaM===undefined) ? '—' : Math.round(distanciaM);
+    if(fonteLabelMap[fonte]){
+      distFonte.textContent = fonteLabelMap[fonte];
+      distFonte.className = 'fonte ' + fonte;
+      distFonte.style.display = '';
+    } else {
+      distFonte.style.display = 'none';
+    }
   }
 
   function atualizarRadar(entidades){
@@ -809,7 +827,11 @@
   function atualizarAlertaReal(alerta, entidades){
     const nivelMudou = alerta.nivel !== nivelAnterior;
 
-    atualizarSemaforo(alerta.nivel, alerta.distancia_m);
+    const listaEntidades = Object.values(entidades||{});
+    const maisProxima = listaEntidades.length
+      ? listaEntidades.reduce((a,b)=> a.distancia_m<=b.distancia_m ? a : b)
+      : null;
+    atualizarSemaforo(alerta.nivel, alerta.distancia_m, maisProxima ? maisProxima.fonte : null);
     atualizarRadar(entidades);
 
     if(nivelMudou){

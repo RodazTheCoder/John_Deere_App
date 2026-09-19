@@ -66,6 +66,27 @@ class TestEntidadeReceiver(unittest.TestCase):
         processar_entidade({"id": "x1", "tipo": "invalido", "distancia_m": 5}, self.estado)
         self.assertEqual(self.estado.ler_entidades(), {})
 
+    def test_fonte_gps_ou_rssi_e_aceita_e_guardada(self):
+        ok, erro = processar_entidade(
+            {"id": "x1", "tipo": "pessoa", "distancia_m": 5, "fonte": "gps"}, self.estado
+        )
+        self.assertTrue(ok)
+        self.assertIsNone(erro)
+        self.assertEqual(self.estado.ler_entidades()["x1"]["fonte"], "gps")
+
+    def test_fonte_invalida_e_rejeitada(self):
+        ok, erro = processar_entidade(
+            {"id": "x1", "tipo": "pessoa", "distancia_m": 5, "fonte": "adivinhacao"}, self.estado
+        )
+        self.assertFalse(ok)
+
+    def test_fonte_ausente_e_aceita_como_none(self):
+        ok, erro = processar_entidade(
+            {"id": "x1", "tipo": "pessoa", "distancia_m": 5}, self.estado
+        )
+        self.assertTrue(ok)
+        self.assertIsNone(self.estado.ler_entidades()["x1"]["fonte"])
+
 
 if __name__ == "__main__":
     unittest.main()

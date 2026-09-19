@@ -19,7 +19,7 @@ class EstadoCompartilhado:
         self._camera_ultimo_heartbeat = None
 
         # LoRa / GPS, recebido via WiFi do ESP32 do trator (comunicacao/entidade_receiver.py)
-        self._entidades = {}  # id -> {"tipo": "pessoa"|"trator", "distancia_m", "angulo_deg", "ultimo_update"}
+        self._entidades = {}  # id -> {"tipo": "pessoa"|"trator", "distancia_m", "angulo_deg", "fonte", "ultimo_update"}
         self._esp_ultimo_heartbeat = None
 
         # Botão de silenciar/reconhecer do dashboard -- guarda PRA QUAL nível
@@ -63,12 +63,13 @@ class EstadoCompartilhado:
             return (time.time() - self._camera_ultimo_heartbeat) <= timeout_s
 
     # ---- ESP32 / LoRa ----
-    def atualizar_entidade(self, entidade_id, tipo, distancia_m, angulo_deg=None):
+    def atualizar_entidade(self, entidade_id, tipo, distancia_m, angulo_deg=None, fonte=None):
         with self._lock:
             self._entidades[entidade_id] = {
                 "tipo": tipo,
                 "distancia_m": distancia_m,
                 "angulo_deg": angulo_deg,
+                "fonte": fonte,  # "gps" ou "rssi" -- só debug visual, ver comunicacao/entidade_receiver.py
                 "ultimo_update": time.time(),
             }
             self._esp_ultimo_heartbeat = time.time()

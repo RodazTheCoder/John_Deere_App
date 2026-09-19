@@ -406,7 +406,7 @@ void conectarWiFi() {
   Serial.println(WiFi.status() == WL_CONNECTED ? "\nWiFi conectado" : "\nWiFi FALHOU -- tenta de novo sozinho depois");
 }
 
-void enviarEntidadeProPi(const String& id, const String& tipo, float distanciaM, float anguloDeg) {
+void enviarEntidadeProPi(const String& id, const String& tipo, float distanciaM, float anguloDeg, const String& fonteDistancia) {
   if (WiFi.status() != WL_CONNECTED) {
     conectarWiFi();
     if (WiFi.status() != WL_CONNECTED) return; // sem rede agora, perde esse pacote e segue
@@ -420,7 +420,9 @@ void enviarEntidadeProPi(const String& id, const String& tipo, float distanciaM,
   corpo += "\"id\":\"" + id + "\",";
   corpo += "\"tipo\":\"" + tipo + "\",";
   corpo += "\"distancia_m\":" + String(distanciaM, 1) + ",";
-  corpo += "\"angulo_deg\":" + String(anguloDeg, 1);
+  corpo += "\"angulo_deg\":" + String(anguloDeg, 1) + ",";
+  // "fonte" (gps ou rssi) e so debug visual no dashboard, nao entra em nenhuma logica de alerta.
+  corpo += "\"fonte\":\"" + fonteDistancia + "\"";
   corpo += "}";
 
   int codigo = http.POST(corpo);
@@ -587,7 +589,7 @@ void processarPacoteRecebido(double minhaLat, double minhaLon, bool meuGpsValido
     : "ALERTA DE PROXIMIDADE (fallback fisico)");
 
 #if TRATOR_COM_PI
-  enviarEntidadeProPi(idRecebido, tipoRecebido, distanciaFinal, anguloAteONo);
+  enviarEntidadeProPi(idRecebido, tipoRecebido, distanciaFinal, anguloAteONo, gpsFixDosDois ? "gps" : "rssi");
 #endif
 }
 
