@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Painel do Operador — Sistema de Detecção</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -177,6 +177,7 @@
   .detect-box.unidentified::before{background:var(--red); color:#3d0d07;}
   .detect-box.hidden{opacity:0; pointer-events:none;}
 
+  .cam-risk{display:none;}
   .cam-caption{
     height:36px; flex-shrink:0;
     background:var(--panel);
@@ -479,16 +480,156 @@
   #modoDemoBtn{font-weight:700; letter-spacing:.03em;}
   #modoDemoBtn.on{color:#1A2017; background:var(--deere-yellow); border-color:var(--deere-yellow);}
 
+  /* ---------- CELULAR: uma vista por vez + menu inferior ---------- */
+  .mnav{display:none;}
+  .ribbon .brand-sub{margin-left:0;}
+
   @media (max-width:860px){
     .main{grid-template-columns:1fr;}
-    /* empilhado em coluna única, o painel da câmera vira uma 2ª linha do grid
-       com altura "auto" — sem um mínimo explícito ele colapsa pra 0px, porque
-       seu conteúdo (.camera-view) só tem altura via flex:1, que não tem o que
-       "esticar" dentro de uma linha de grid sem altura definida. */
-    .camera-panel{min-height:280px;}
-    .radar{width:190px;height:190px;}
-    .ribbon .brand{font-size:10px;}
-    .ribbon .brand b{font-size:12px;}
+    .tabs{display:none;}
+
+    .ribbon{height:48px; padding:0 12px;}
+    .ribbon .brand b{font-size:13px; border-right:none; padding-right:0;}
+    .ribbon .brand-sub, .ribbon .brand-pre, .clock{display:none;}
+    .status-cluster{gap:6px;}
+    .status-chip{padding:4px 9px; font-size:10px; white-space:nowrap;}
+
+    /* menu inferior */
+    .mnav{
+      display:flex; flex-shrink:0;
+      background:var(--panel);
+      border-top:3px solid var(--deere-green);
+      padding-bottom:env(safe-area-inset-bottom);
+    }
+    .mnav button{
+      flex:1; position:relative;
+      display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px;
+      min-height:58px; padding:8px 2px;
+      background:none; border:none; cursor:pointer;
+      color:var(--text-dim);
+      font-family:var(--sans); font-size:10px; font-weight:700;
+      letter-spacing:.05em; text-transform:uppercase;
+      -webkit-tap-highlight-color:transparent;
+    }
+    .mnav button.active{color:var(--deere-yellow); box-shadow:inset 0 3px 0 var(--deere-yellow);}
+    .mnav svg{
+      width:23px; height:23px; fill:none; stroke:currentColor;
+      stroke-width:2; stroke-linecap:round; stroke-linejoin:round;
+    }
+    .mnav .mbadge{
+      position:absolute; top:5px; left:calc(50% + 6px);
+      font-family:var(--mono); font-size:9px; font-weight:700;
+      background:var(--deere-yellow); color:#1A2017;
+      border-radius:8px; padding:0 5px; min-width:15px; text-align:center;
+    }
+
+    /* qual bloco aparece em cada vista */
+    .camera-panel{display:none; min-height:0;}
+    body[data-mview="camera"] .camera-panel{display:flex;}
+    body[data-mview="camera"] .side{display:none;}
+    body[data-mview="hist"] .main, body[data-mview="ajustes"] .main{display:none;}
+
+    /* alerta crítico sempre visível no topo, em qualquer vista */
+    .alert-banner{order:-1;}
+    .alert-banner.show{height:78px;}
+    .alert-banner .txt{font-size:13.5px;}
+    .alert-banner .txt small{font-size:10px;}
+    .ack-btn{padding:12px 14px; font-size:12px;}
+
+    /* vista ALERTA: bloco fixo, sem rolagem, tudo centralizado.
+       O radar ocupa o espaço que sobra (flex) e se ajusta à altura do celular;
+       risco, distância e áudio têm tamanho próprio. */
+    body[data-mview="alerta"] .side{overflow:hidden;}
+    .side{transition:background .3s ease;}
+    body[data-risk="g"] .side{background:linear-gradient(180deg, var(--green-dim), var(--panel) 70%);}
+    body[data-risk="a"] .side{background:linear-gradient(180deg, var(--amber-dim), var(--panel) 70%);}
+    body[data-risk="r"] .side{background:linear-gradient(180deg, var(--red-dim), var(--panel) 70%);}
+    .side .panel-block{border-bottom:none; text-align:center;}
+    .panel-title{justify-content:center; margin-bottom:8px;}
+
+    .side .pb-radar{
+      flex:1 1 0; min-height:0; padding:8px 14px 2px;
+      display:flex; container-type:size;
+    }
+    .pb-radar .panel-title{display:none;}
+    .pb-radar .radar-wrap{flex:1; min-height:0; padding:0;}
+    .radar{width:min(72vw, 30vh, 320px); height:min(72vw, 30vh, 320px);}
+    @supports (width:1cqw){
+      .radar{width:min(100cqw, 100cqh); height:min(100cqw, 100cqh);}
+    }
+
+    /* risco e distância lado a lado: sobra mais altura pro radar */
+    .pb-risco{
+      flex:0 0 auto; padding:8px 14px 10px;
+      display:grid; grid-template-columns:1fr auto; align-items:center; gap:10px;
+    }
+    .pb-risco .panel-title, .pb-audio .panel-title{display:none;}
+    .semaphore{min-width:0;}
+    .sem-row:not(.active){display:none;}
+    .sem-row.active{padding:10px 12px; gap:10px; justify-content:flex-start; text-align:left;}
+    .sem-led{width:18px; height:18px;}
+    .sem-text{font-size:clamp(17px, 2.8vh, 21px);}
+    .sem-sub{font-size:11.5px; margin-top:2px;}
+    .distance-readout{margin:0; flex-direction:column; align-items:center; gap:3px;}
+    .distance-readout .num{font-size:clamp(40px, 7vh, 58px);}
+    .distance-readout .num::after{content:" m"; font-size:.38em; color:var(--text-dim); font-weight:600;}
+    .distance-readout .unit{display:none;}
+
+    .pb-audio{flex:0 0 auto; padding:8px 14px 12px; border-top:1px solid var(--line);}
+    .audio-row{justify-content:center;}
+    .audio-text{text-align:left;}
+    .audio-sub{display:none;}
+    .audio-text #audioLabel{font-size:14.5px;}
+    .mute-btn{min-height:clamp(48px, 7vh, 58px); font-size:15px; margin-top:8px;}
+
+    /* faixa de nível de risco sob a câmera (só no celular) */
+    .cam-risk{
+      display:flex; align-items:center; gap:10px; flex-shrink:0;
+      padding:9px 14px; background:var(--panel-raised);
+      border-top:2px solid var(--line);
+      font-family:var(--sans); font-weight:700; font-size:15px; color:#fff;
+    }
+    .cam-risk .cr-led{width:14px; height:14px; border-radius:50%; background:var(--text-faint); flex-shrink:0;}
+    .cam-risk .cr-dist{margin-left:auto; font-family:var(--mono); font-size:17px; color:var(--deere-yellow);}
+    body[data-risk="g"] .cam-risk{background:var(--green-dim);} body[data-risk="g"] .cr-led{background:var(--green);}
+    body[data-risk="a"] .cam-risk{background:var(--amber-dim);} body[data-risk="a"] .cr-led{background:var(--amber);}
+    body[data-risk="r"] .cam-risk{background:var(--red-dim);} body[data-risk="r"] .cr-led{background:var(--red);}
+
+    /* vista CÂMERA: mostra o quadro inteiro (contain), sem cortar as laterais --
+       as caixas de detecção vêm desenhadas no próprio quadro, então cortar
+       poderia esconder uma pessoa na borda */
+    .cam-img{object-fit:contain;}
+    .cam-caption{height:auto; min-height:38px; padding:8px 14px; font-size:12px;}
+    .rec-chip, .cam-label{font-size:10px;}
+
+    /* vista HISTÓRICO */
+    body[data-mview="hist"] #viewPanel, body[data-mview="ajustes"] #viewPanel{flex:0 0 auto !important;}
+    #viewHistory{display:none !important;}
+    body[data-mview="hist"] #viewHistory{display:block !important;}
+    .history-view{padding:16px;}
+
+    /* vista AJUSTES (modo demo + escala), em blocos grandes */
+    .demo-strip{display:none;}
+    body[data-mview="ajustes"] .demo-strip{
+      display:flex; flex-direction:column; align-items:stretch; gap:16px;
+      flex:1; overflow-y:auto; padding:18px 16px; border-top:none;
+    }
+    .demo-strip span{font-size:10px;}
+    .demo-btn{padding:14px 14px; font-size:14px; min-height:50px; white-space:normal;}
+    #modoDemoBtn{font-size:15px; min-height:56px;}
+    .escala-group{flex-wrap:wrap;}
+    .escala-group > span{flex-basis:100%; margin-bottom:2px;}
+    .escala-group input{flex:1; width:auto !important; min-height:50px; font-size:16px !important;}
+    .escala-group .demo-btn{flex:1;}
+    #demoBotoes{flex-direction:column; align-items:stretch !important;}
+    #demoBotoes > span{display:none;}
+    #demoBotoes .demo-btn{text-align:left;}
+  }
+
+  @media (max-width:860px) and (max-height:640px){
+    .audio-sub{display:none;}
+    .pb-risco{padding:4px 18px 6px;}
+    .pb-audio{padding:8px 18px 10px;}
   }
 </style>
 </head>
@@ -497,7 +638,7 @@
 <div class="rig">
 
   <div class="ribbon">
-    <div class="brand"><b>CHALLENGE JOHN DEERE</b> · Detecção &amp; Prevenção de Colisão</div>
+    <div class="brand"><b><span class="brand-pre">CHALLENGE </span>JOHN DEERE</b><span class="brand-sub">· Detecção &amp; Prevenção de Colisão</span></div>
     <div class="status-cluster">
       <div class="status-chip"><span class="dot" id="dotPi"></span>RASPBERRY PI</div>
       <div class="status-chip"><span class="dot" id="dotEsp"></span>ESP32 / LORA</div>
@@ -519,12 +660,13 @@
         <div class="rec-chip"><span class="reddot"></span>CÂMERA TRASEIRA · AO VIVO</div>
         <div class="cam-label">320×320 · NCNN</div>
       </div>
+      <div class="cam-risk" id="camRisk"><span class="cr-led"></span><span class="cr-text" id="camRiskTxt">Seguro</span><span class="cr-dist" id="camRiskDist">—</span></div>
       <div class="cam-caption" id="camCaption"><b>Conectando</b>&nbsp;— aguardando primeiro quadro da câmera</div>
     </div>
 
     <div class="side">
 
-      <div class="panel-block">
+      <div class="panel-block pb-radar">
         <div class="panel-title">Rosa dos ventos</div>
         <div class="radar-wrap">
           <div class="radar" id="radar">
@@ -542,7 +684,7 @@
         </div>
       </div>
 
-      <div class="panel-block">
+      <div class="panel-block pb-risco">
         <div class="panel-title">Nível de risco</div>
         <div class="semaphore">
           <div class="sem-row g" id="rowG">
@@ -563,7 +705,7 @@
         </div>
       </div>
 
-      <div class="panel-block">
+      <div class="panel-block pb-audio">
         <div class="panel-title">Áudio / Buzzer</div>
         <div class="audio-row">
           <span class="audio-icon" id="audioIcon">🔇</span>
@@ -596,7 +738,7 @@
 
   <div class="demo-strip">
     <button class="demo-btn" id="modoDemoBtn">MODO DEMO: DESLIGADO</button>
-    <span style="display:flex; align-items:center; gap:6px;">
+    <span class="escala-group" style="display:flex; align-items:center; gap:6px;">
       <span style="font-family:var(--mono); font-size:9.5px; color:var(--text-faint); text-transform:uppercase; letter-spacing:.1em;">Escala (verde acima de, m) →</span>
       <input type="number" id="escalaInput" placeholder="100" min="1" step="1"
         style="width:70px; font-family:var(--mono); font-size:12px; background:var(--panel-raised); color:var(--text); border:1px solid var(--line); border-radius:4px; padding:6px 8px;">
@@ -611,6 +753,13 @@
       <button class="demo-btn" data-s="unidentified">MÁXIMO — fique NA câmera (sem entidade)</button>
     </span>
   </div>
+
+  <nav class="mnav" id="mnav">
+    <button data-mv="alerta" class="active"><svg viewBox="0 0 24 24"><path d="M12 3 2 20h20L12 3z"/><path d="M12 10v5M12 18h.01"/></svg>Alerta</button>
+    <button data-mv="camera"><svg viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="13" rx="2"/><circle cx="12" cy="13.5" r="3.5"/><path d="M8 7l1.5-3h5L16 7"/></svg>Câmera</button>
+    <button data-mv="hist"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Histórico<span class="mbadge" id="logBadgeM">1</span></button>
+    <button data-mv="ajustes"><svg viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg>Ajustes</button>
+  </nav>
 
 </div>
 
@@ -627,13 +776,13 @@
   function polarBlip(angleDeg, distFrac, type, pending){
     // angleDeg: 0 = front(top), clockwise
     const rad = (angleDeg - 90) * Math.PI/180;
-    const r = Math.min(distFrac, 1) * (R - 12);
-    const x = R + r*Math.cos(rad);
-    const y = R + r*Math.sin(rad);
+    const r = Math.min(distFrac, 1) * (R - 12) / R; // fração do raio; posição em % pra o radar poder mudar de tamanho (celular)
+    const x = 50 + 50 * r * Math.cos(rad);
+    const y = 50 + 50 * r * Math.sin(rad);
     const el = document.createElement('div');
     el.className = 'blip ' + (type === 'tractor' ? 'tractor' : 'person') + (pending ? ' pending' : '');
-    el.style.left = x+'px';
-    el.style.top = y+'px';
+    el.style.left = x+'%';
+    el.style.top = y+'%';
     el.textContent = type === 'tractor' ? '▣' : '●';
     return el;
   }
@@ -800,6 +949,10 @@
   const fonteLabelMap = { gps: 'GPS', rssi: 'RSSI' };
   function atualizarSemaforo(nivel, distanciaM, fonte){
     [rowG,rowA,rowR].forEach(r=>r.classList.remove('active'));
+    const riscoCor = nivel==='seguro' ? 'g' : (nivel==='atencao' ? 'a' : 'r');
+    document.body.dataset.risk = riscoCor;
+    document.getElementById('camRiskTxt').textContent = {g:'Seguro', a:'Atenção', r:'Risco crítico'}[riscoCor];
+    document.getElementById('camRiskDist').textContent = (distanciaM===null || distanciaM===undefined) ? '—' : Math.round(distanciaM) + ' m';
     ledR.classList.remove('blink');
     if(nivel==='seguro') rowG.classList.add('active');
     else if(nivel==='atencao') rowA.classList.add('active');
@@ -925,7 +1078,11 @@
   // Atualiza a imagem em loop (funciona em qualquer navegador, inclusive
   // Safari/iPhone/iPad, que não suporta o streaming multipart de /video_feed).
   const camImg = document.getElementById('camImg');
+  const mobileMQ = window.matchMedia('(max-width:860px)');
+  // No celular só baixa o quadro da câmera com a vista "Câmera" aberta: é só a
+  // imagem da tela. Detecção, alertas e buzzer rodam no Pi e não dependem disso.
   function refreshSnapshot(){
+    if(mobileMQ.matches && document.body.dataset.mview !== 'camera') return;
     camImg.src = '/snapshot.jpg?t=' + Date.now();
   }
   refreshSnapshot();
@@ -943,6 +1100,7 @@
 
   function renderLog(){
     logBadge.textContent = eventLog.length;
+    document.getElementById('logBadgeM').textContent = eventLog.length;
     historyMeta.textContent = eventLog.length + (eventLog.length===1 ? ' evento registrado nesta sessão' : ' eventos registrados nesta sessão');
     logList.innerHTML = eventLog.map(e=>`
       <div class="log-entry">
@@ -980,6 +1138,24 @@
       document.getElementById('viewHistory').style.display = isHistory ? 'block' : 'none';
     });
   });
+
+  // ---------- NAVEGAÇÃO DO CELULAR ----------
+  // Só vale com tela estreita (regras em @media): uma vista por vez, menu embaixo.
+  const MVIEWS = ['alerta','camera','hist','ajustes'];
+  function setMView(v){
+    if(!MVIEWS.includes(v)) v = 'alerta';
+    document.body.dataset.mview = v;
+    document.querySelectorAll('#mnav button').forEach(b=>b.classList.toggle('active', b.dataset.mv===v));
+    // se estava na aba Histórico do desktop, volta pro painel pra o alerta continuar visível
+    document.getElementById('viewPanel').style.display = 'flex';
+    if(v==='camera') refreshSnapshot();
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('active', b.dataset.view==='panel'));
+    if(history.replaceState) history.replaceState(null, '', '#' + v);
+  }
+  document.querySelectorAll('#mnav button').forEach(b=>b.addEventListener('click', ()=>setMView(b.dataset.mv)));
+  document.body.dataset.mview = 'alerta';
+  if(mobileMQ.matches) setMView(location.hash.slice(1));
+  mobileMQ.addEventListener('change', ()=>{ if(mobileMQ.matches) setMView(document.body.dataset.mview); });
 
   applyScenario('safe');
 </script>
