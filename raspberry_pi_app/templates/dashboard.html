@@ -390,6 +390,8 @@
   .mute-btn:hover{background:#FFE94D;}
   .mute-btn.muted{color:var(--text-faint); cursor:default; background:var(--panel-raised); border:1px solid var(--line);}
   .mute-btn.muted:hover{background:var(--panel-raised);}
+  .mute-btn.reativar{color:var(--deere-yellow); background:none; border:2px solid var(--deere-yellow);}
+  .mute-btn.reativar:hover{background:rgba(255,222,0,.12);}
 
   /* ---------- ALERT BANNER ---------- */
   .alert-banner{
@@ -1220,20 +1222,23 @@
     };
     audioIcon.textContent = (som.estado==='off' || som.estado==='silenciado') ? '🔇' : (soundIconMap[som.estado] || '🔈');
     audioLabel.textContent = labelMap[som.estado] || som.estado;
+    somSilenciadoAtual = som.estado === 'silenciado';
 
     if(som.estado === 'silenciado'){
       audioSub.textContent = 'LED continua ativo até a situação mudar';
       muteBtn.style.display = '';
-      muteBtn.classList.add('muted');
-      muteBtn.textContent = 'SOM SILENCIADO';
-      muteBtn.disabled = true;
+      muteBtn.classList.remove('muted');
+      muteBtn.classList.add('reativar');
+      muteBtn.textContent = 'REATIVAR SOM';
+      muteBtn.disabled = false;
     } else if(som.estado === 'off'){
       audioSub.textContent = '';
+      muteBtn.classList.remove('reativar');
       muteBtn.style.display = 'none';
     } else {
       audioSub.textContent = 'Toca até a distância mudar ou ser reconhecida';
       muteBtn.style.display = '';
-      muteBtn.classList.remove('muted');
+      muteBtn.classList.remove('muted', 'reativar');
       muteBtn.textContent = 'SILENCIAR SOM';
       muteBtn.disabled = false;
     }
@@ -1254,15 +1259,25 @@
     if(nivelMudou){
       alertBanner.classList.remove('acked');
       ackBtn.style.display = '';
+      ackBtn.textContent = 'RECONHECER';
       alertTxt.innerHTML = `${alerta.mensagem}<small>Câmera confirma presença sem tag LoRa correspondente</small>`;
       pushLogReal(alerta.nivel, alerta.mensagem);
       nivelAnterior = alerta.nivel;
     }
 
+    // som reativado com o alerta ainda ativo: o banner volta ao estado "não reconhecido"
+    if(alerta.nivel === 'nao_identificado' && alerta.som.estado !== 'silenciado' && alertBanner.classList.contains('acked')){
+      alertBanner.classList.remove('acked');
+      ackBtn.textContent = 'RECONHECER';
+      alertTxt.innerHTML = `${alerta.mensagem}<small>Câmera confirma presença sem tag LoRa correspondente</small>`;
+      if(eventLog.length){ eventLog[0].acked = false; renderLog(); }
+    }
+
     const maxSilenciado = alerta.nivel === 'nao_identificado' && alerta.som.estado === 'silenciado';
     if(maxSilenciado && !alertBanner.classList.contains('acked')){
       alertBanner.classList.add('acked');
-      ackBtn.style.display = 'none';
+      ackBtn.style.display = '';
+      ackBtn.textContent = 'REATIVAR SOM';
       const t = new Date().toLocaleTimeString('pt-BR');
       alertTxt.innerHTML = `NÃO IDENTIFICADO — reconhecido pelo operador<small>Buzzer silenciado às ${t} · LED permanece ativo até a situação mudar</small>`;
       if(eventLog.length){ eventLog[0].acked = true; renderLog(); }
@@ -1368,13 +1383,15 @@
 
   const soundIconMap = { off:'🔇', espacado:'🔈', continuo:'🔊', urgente:'🚨' };
 
-  async function muteSound(){
-    await fetch('/api/silenciar', {method: 'POST'});
+  let somSilenciadoAtual = false;
+  async function alternarSom(){
+    // silenciado -> reativa (DELETE); tocando -> silencia (POST)
+    await fetch('/api/silenciar', {method: somSilenciadoAtual ? 'DELETE' : 'POST'});
     pollStatusReal(); // atualiza a tela na hora, sem esperar o próximo tick de 1s
   }
 
-  muteBtn.addEventListener('click', muteSound);
-  ackBtn.addEventListener('click', muteSound);
+  muteBtn.addEventListener('click', alternarSom);
+  ackBtn.addEventListener('click', alternarSom);
 
   // ---------- TABS ----------
   document.querySelectorAll('.tab-btn').forEach(btn=>{

@@ -179,6 +179,14 @@ def silenciar():
     return jsonify({"ok": True})
 
 
+@app.route("/api/silenciar", methods=["DELETE"])
+def reativar_som():
+    """Desfaz o SILENCIAR: o som (dashboard e buzzer físico) volta a tocar
+    se o nível ainda pedir som."""
+    estado.reativar_som()
+    return jsonify({"ok": True})
+
+
 def main():
     threading.Thread(target=camera_worker.run, daemon=True).start()
     app.run(host=config.FLASK_HOST, port=config.FLASK_PORT, threaded=True)

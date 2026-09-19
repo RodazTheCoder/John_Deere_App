@@ -14,6 +14,12 @@ class TestEstadoCompartilhado(unittest.TestCase):
     def setUp(self):
         self.estado = EstadoCompartilhado()
 
+    def test_reativar_som_desfaz_o_silencio(self):
+        self.estado.silenciar_som("critico_confirmado")
+        self.assertTrue(self.estado.som_silenciado("critico_confirmado"))
+        self.estado.reativar_som()
+        self.assertFalse(self.estado.som_silenciado("critico_confirmado"))
+
     def test_remover_entidade_existente(self):
         self.estado.atualizar_entidade("x1", "pessoa", 10, 90)
         self.assertIn("x1", self.estado.ler_entidades())

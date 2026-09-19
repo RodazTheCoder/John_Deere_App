@@ -104,6 +104,10 @@ class EstadoCompartilhado:
         with self._lock:
             self._som_silenciado_nivel = nivel
 
+    def reativar_som(self):
+        with self._lock:
+            self._som_silenciado_nivel = None
+
     def som_silenciado(self, nivel):
         with self._lock:
             return self._som_silenciado_nivel == nivel
