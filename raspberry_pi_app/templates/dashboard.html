@@ -727,6 +727,41 @@
     body[data-mview="alerta"] .pb-risco{grid-column:2; grid-row:1; align-self:center;}
     body[data-mview="alerta"] .pb-audio{grid-column:2; grid-row:2;}
     .cam-risk{padding:6px 14px;}
+    .mnav button:focus{outline:none;}
+
+    /* Câmera deitada: câmera à esquerda, dados (nível, distância, silenciar) à direita */
+    body[data-mview="camera"] .main{grid-template-columns:minmax(0,3fr) minmax(0,2fr);}
+    body[data-mview="camera"] .side{display:flex; overflow:hidden;}
+    body[data-mview="camera"] .side .pb-radar{display:none;}
+    body[data-mview="camera"] .cam-risk{display:none;}
+    body[data-mview="camera"] .pb-risco{flex:1 1 auto; align-content:center;}
+
+    /* Ajustes deitado: duas colunas, sem rolagem -- modo demo e escala à esquerda, cenários em grade à direita */
+    body[data-mview="ajustes"] .demo-strip{
+      display:grid; grid-template-columns:1fr 1fr; grid-template-rows:1fr 1fr;
+      gap:10px 14px; align-content:stretch; overflow:hidden; padding:12px 16px;
+    }
+    body[data-mview="ajustes"] #modoDemoBtn{grid-column:1; grid-row:1; min-height:0; font-size:15px;}
+    body[data-mview="ajustes"] .escala-group{
+      grid-column:1; grid-row:2; align-content:center; gap:8px; padding:12px;
+      background:var(--panel-raised); border:1px solid var(--line); border-radius:8px;
+    }
+    body[data-mview="ajustes"] .escala-group input{min-height:44px; flex:1 1 90px; min-width:0;}
+    body[data-mview="ajustes"] .escala-group .demo-btn{min-height:44px; padding:8px 12px; font-size:13px; flex:0 0 auto; white-space:nowrap;}
+    body[data-mview="ajustes"] #demoBotoes{
+      grid-column:2; grid-row:1 / 3;
+      display:grid !important; grid-template-columns:1fr 1fr; grid-auto-rows:1fr; gap:8px;
+    }
+    body[data-mview="ajustes"] #demoBotoes .demo-btn{min-height:0; padding:8px; font-size:12.5px; text-align:center;}
+
+    /* coluna de dados (Alerta e Câmera): nível, distância grande e contexto empilhados, preenchendo a altura */
+    .pb-risco{grid-template-columns:1fr; justify-items:stretch; gap:8px; padding:8px 18px;}
+    .sem-row.active{justify-content:center; padding:12px 16px;}
+    .distance-readout{flex-direction:row; flex-wrap:wrap; justify-content:center; align-items:baseline; gap:6px 10px;}
+    .distance-readout .num{font-size:clamp(56px, 20vh, 84px);}
+    .pb-risco .ctx-line{margin:0;}
+    .pb-audio{padding:10px 18px 12px;}
+    body[data-mview="alerta"] .side .pb-radar{padding:16px 18px;}
   }
 
   @media (max-width:860px) and (max-height:640px){
