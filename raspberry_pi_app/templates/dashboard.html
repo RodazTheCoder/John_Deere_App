@@ -105,6 +105,39 @@
   .conn-banner.show{display:flex;}
   .conn-banner small{margin-left:auto; font-family:var(--mono); font-weight:500; font-size:11px; color:var(--text-dim);}
   body.stale .side, body.stale .camera-panel{opacity:.4; filter:grayscale(.8);}
+  .pb-lista{display:none;}
+  .ent-pc{display:grid; grid-template-columns:repeat(auto-fill, minmax(340px, 1fr)); gap:10px; align-items:start;}
+  .ent-pc .ent-row{margin-bottom:0;}
+  .ent-pc .ent-vazio{grid-column:1 / -1;}
+  #entCount{margin-left:6px; color:var(--text-faint);}
+  .lista-fechar{display:none;}
+  .ent-row{
+    display:flex; align-items:center; gap:10px;
+    padding:8px 10px; margin-bottom:6px;
+    background:var(--panel-raised); border:1px solid var(--line);
+    border-left-width:5px; border-radius:6px;
+  }
+  .ent-row.g{border-left-color:var(--green);}
+  .ent-row.a{border-left-color:var(--amber);}
+  .ent-row.r{border-left-color:var(--red);}
+  .ent-ico{
+    width:22px; height:22px; border-radius:50%; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center; font-size:11px;
+  }
+  .ent-ico.person{background:var(--deere-yellow); color:#1A2017;}
+  .ent-ico.tractor{background:var(--green); color:#062412;}
+  .ent-main{flex:1; min-width:0; font-family:var(--sans); font-size:13px; font-weight:600; color:var(--text);}
+  .ent-main small{font-family:var(--mono); font-size:10.5px; font-weight:400; color:var(--text-faint); margin-left:6px;}
+  .ent-sub{font-family:var(--mono); font-size:10.5px; font-weight:400; color:var(--text-dim); margin-top:2px; display:flex; align-items:center; gap:6px; flex-wrap:wrap;}
+  .ent-sub .fonte{
+    font-size:9.5px; font-weight:600; letter-spacing:.04em; text-transform:uppercase;
+    padding:1px 5px; border-radius:3px; border:1px solid var(--line); color:var(--text-dim);
+  }
+  .ent-sub .fonte.gps{color:var(--green); border-color:var(--green-dim);}
+  .ent-sub .fonte.rssi{color:var(--amber); border-color:var(--amber-dim);}
+  .ent-dist{font-family:var(--mono); font-size:19px; font-weight:700; color:var(--deere-yellow);}
+  .ent-dist small{font-size:11px; color:var(--text-dim); font-weight:600;}
+  .ent-vazio{font-family:var(--mono); font-size:11.5px; color:var(--text-faint);}
   .ctx-line{font-family:var(--mono); font-size:11.5px; color:var(--text-dim); margin-top:8px;}
   .ctx-line:empty{display:none;}
   .clock{
@@ -508,6 +541,40 @@
     .ribbon{min-height:48px; padding:env(safe-area-inset-top) 12px 0;}
     .hide-m{display:none;}
     :root{--nav-h:61px;}
+    .side .panel-block.pb-lista{
+      display:none; position:fixed; left:0; right:0;
+      bottom:calc(var(--nav-h) + env(safe-area-inset-bottom));
+      max-height:55vh; overflow-y:auto; z-index:20;
+      background:var(--panel); border-top:3px solid var(--deere-yellow);
+      box-shadow:0 -12px 30px rgba(0,0,0,.6);
+      text-align:left; padding:12px 14px 14px;
+    }
+    body.lista-aberta .side .panel-block.pb-lista{display:block;}
+    .pb-lista .panel-title{justify-content:flex-start; font-size:10.5px; margin-bottom:4px;}
+    .lista-fechar{
+      display:inline-block; margin-left:auto; padding:5px 10px;
+      font-family:var(--sans); font-size:10.5px; font-weight:700; letter-spacing:.06em;
+      color:var(--text-dim); background:none; border:1px solid var(--line); border-radius:5px; cursor:pointer;
+    }
+    /* linhas minimalistas: sem cartão, ponto colorido do nível, texto solto */
+    .pb-lista .ent-row{
+      background:none; border:none; border-bottom:1px solid var(--line-soft);
+      border-radius:0; padding:10px 2px; margin:0; gap:10px;
+    }
+    .pb-lista .ent-row:last-child{border-bottom:none;}
+    .pb-lista .ent-row::before{
+      content:""; width:9px; height:9px; border-radius:50%; flex-shrink:0; background:var(--text-faint);
+    }
+    .pb-lista .ent-row.g::before{background:var(--green);}
+    .pb-lista .ent-row.a::before{background:var(--amber);}
+    .pb-lista .ent-row.r::before{background:var(--red);}
+    .pb-lista .ent-ico{display:none;}
+    .pb-lista .ent-main{font-size:14px;}
+    .pb-lista .ent-sub .fonte{border:none; padding:0; font-size:10px;}
+    .pb-lista .ent-dist{font-size:17px;}
+    .ctx-line{cursor:pointer;}
+    .ctx-line:not(:empty)::after{content:" \203A";}
+    .conn-banner{padding:8px 12px; font-size:12px;}
     .ribbon .brand b{font-size:13px; border-right:none; padding-right:0;}
     .ribbon .brand-sub, .ribbon .brand-pre, .clock{display:none;}
     .status-cluster{gap:6px;}
@@ -624,7 +691,7 @@
 
     /* vista HISTÓRICO */
     body[data-mview="hist"] #viewPanel, body[data-mview="ajustes"] #viewPanel{flex:0 0 auto !important;}
-    #viewHistory{display:none !important;}
+    #viewHistory, #viewEntidades{display:none !important;}
     body[data-mview="hist"] #viewHistory{display:block !important;}
     .history-view{padding:16px;}
 
@@ -650,6 +717,7 @@
   @media (max-height:520px) and (orientation:landscape){
     .ribbon{min-height:38px;}
     .ribbon .brand b{font-size:12px;}
+    :root{--nav-h:45px;}
     .mnav button{min-height:42px; flex-direction:row; gap:7px; padding:4px;}
     .mnav svg{width:18px; height:18px;}
     .mnav .mbadge{top:3px;}
@@ -687,6 +755,7 @@
   <div class="tabs">
     <button class="tab-btn active" data-view="panel">Painel</button>
     <button class="tab-btn" data-view="history">Histórico <span class="badge" id="logBadge">1</span></button>
+    <button class="tab-btn" data-view="entidades">Entidades <span class="badge" id="entBadge">0</span></button>
   </div>
 
   <div id="viewPanel" style="display:flex; flex-direction:column; flex:1; min-height:0;">
@@ -756,6 +825,11 @@
         <button class="mute-btn" id="muteBtn" style="display:none;">SILENCIAR SOM</button>
       </div>
 
+      <div class="panel-block pb-lista" id="pbLista">
+        <div class="panel-title">Entidades no alcance<span id="entCount"></span><button class="lista-fechar" id="listaFechar">FECHAR</button></div>
+        <div id="entList"><div class="ent-vazio">Nenhuma entidade no alcance</div></div>
+      </div>
+
     </div>
   </div>
 
@@ -773,6 +847,14 @@
       <span id="historyMeta">1 evento registrado nesta sessão</span>
     </div>
     <div id="logList"></div>
+  </div>
+
+  <div class="history-view" id="viewEntidades" style="display:none;">
+    <div class="history-header">
+      <h2>Entidades no alcance</h2>
+      <span id="entMeta">nenhuma no momento</span>
+    </div>
+    <div id="entListPC" class="ent-pc"></div>
   </div>
 
   <div class="demo-strip">
@@ -1012,13 +1094,48 @@
   }
 
   // Direção só aparece quando vem de GPS: sem GPS (só RSSI) o ângulo não existe.
+  function esc(t){ return String(t).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
   const DIRECOES = ['à frente','à frente, à direita','à direita','atrás, à direita','atrás','atrás, à esquerda','à esquerda','à frente, à esquerda'];
+  function direcaoDe(e){
+    if(typeof e.angulo_deg !== 'number') return null;
+    return DIRECOES[Math.round((((e.angulo_deg%360)+360)%360)/45)%8];
+  }
+
+  // Lista de todas as entidades (ordenadas por distância), cada uma com a cor
+  // do nível em que ela mesma estaria -- o semáforo continua olhando só a mais próxima.
+  function nivelDaDistancia(d){ return d > escalaVerdeAtual ? 'g' : (d > escalaAmareloAtual ? 'a' : 'r'); }
+  function renderListaEntidades(entidades){
+    const lista = Object.entries(entidades||{}).map(([id,e])=>({id, ...e})).sort((a,b)=>a.distancia_m - b.distancia_m);
+    document.getElementById('entCount').textContent = lista.length ? '(' + lista.length + ')' : '';
+    document.getElementById('entBadge').textContent = lista.length;
+    document.getElementById('entMeta').textContent = lista.length ? lista.length + (lista.length===1 ? ' entidade' : ' entidades') + ' · a mais próxima define o nível' : 'nenhuma no momento';
+    if(!lista.length){
+      const vazio = '<div class="ent-vazio">Nenhuma entidade no alcance</div>';
+      document.getElementById('entList').innerHTML = vazio;
+      document.getElementById('entListPC').innerHTML = vazio;
+      return;
+    }
+    const html = lista.map(e=>{
+      const trator = e.tipo==='trator';
+      const dir = e.fonte==='rssi' ? 'sem direção' : (direcaoDe(e) || '');
+      const fonte = fonteLabelMap[e.fonte] ? `<span class="fonte ${e.fonte}">${fonteLabelMap[e.fonte]}</span>` : '';
+      return `<div class="ent-row ${nivelDaDistancia(e.distancia_m)}">
+        <span class="ent-ico ${trator ? 'tractor' : 'person'}">${trator ? '▣' : '●'}</span>
+        <div class="ent-main">${trator ? 'Trator' : 'Pessoa'}<small>${esc(e.id)}</small>
+          <div class="ent-sub">${esc(dir)} ${fonte}</div></div>
+        <div class="ent-dist">${Math.round(e.distancia_m)}<small> m</small></div>
+      </div>`;
+    }).join('');
+    document.getElementById('entList').innerHTML = html;
+    document.getElementById('entListPC').innerHTML = html;
+  }
+
   function atualizarContexto(e, total){
     const el = document.getElementById('ctxLine');
     if(!e){ el.textContent = ''; return; }
     let txt = e.tipo==='trator' ? 'Trator' : 'Pessoa';
     if(e.fonte==='rssi') txt += ' · direção indisponível (RSSI)';
-    else if(typeof e.angulo_deg==='number') txt += ' · ' + DIRECOES[Math.round((((e.angulo_deg%360)+360)%360)/45)%8];
+    else if(direcaoDe(e)) txt += ' · ' + direcaoDe(e);
     if(total>1) txt += ' · +' + (total-1) + (total-1===1 ? ' outra' : ' outras');
     el.textContent = txt;
   }
@@ -1074,6 +1191,7 @@
     atualizarSemaforo(alerta.nivel, alerta.distancia_m, maisProxima ? maisProxima.fonte : null);
     atualizarRadar(entidades);
     atualizarContexto(maisProxima, listaEntidades.length);
+    renderListaEntidades(entidades);
 
     if(nivelMudou){
       alertBanner.classList.remove('acked');
@@ -1204,9 +1322,10 @@
   document.querySelectorAll('.tab-btn').forEach(btn=>{
     btn.addEventListener('click', ()=>{
       document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('active', b===btn));
-      const isHistory = btn.dataset.view==='history';
-      document.getElementById('viewPanel').style.display = isHistory ? 'none' : 'flex';
-      document.getElementById('viewHistory').style.display = isHistory ? 'block' : 'none';
+      const v = btn.dataset.view;
+      document.getElementById('viewPanel').style.display = v==='panel' ? 'flex' : 'none';
+      document.getElementById('viewHistory').style.display = v==='history' ? 'block' : 'none';
+      document.getElementById('viewEntidades').style.display = v==='entidades' ? 'block' : 'none';
     });
   });
 
@@ -1216,6 +1335,7 @@
   function setMView(v){
     if(!MVIEWS.includes(v)) v = 'alerta';
     document.body.dataset.mview = v;
+    document.body.classList.remove('lista-aberta');
     document.querySelectorAll('#mnav button').forEach(b=>b.classList.toggle('active', b.dataset.mv===v));
     // se estava na aba Histórico do desktop, volta pro painel pra o alerta continuar visível
     document.getElementById('viewPanel').style.display = 'flex';
@@ -1224,6 +1344,10 @@
     if(history.replaceState) history.replaceState(null, '', '#' + v);
   }
   document.querySelectorAll('#mnav button').forEach(b=>b.addEventListener('click', ()=>setMView(b.dataset.mv)));
+  document.getElementById('ctxLine').addEventListener('click', ()=>{
+    if(mobileMQ.matches && document.getElementById('ctxLine').textContent) document.body.classList.toggle('lista-aberta');
+  });
+  document.getElementById('listaFechar').addEventListener('click', ()=>document.body.classList.remove('lista-aberta'));
   document.body.dataset.mview = 'alerta';
   if(mobileMQ.matches) setMView(location.hash.slice(1));
   mobileMQ.addEventListener('change', ()=>{ if(mobileMQ.matches) setMView(document.body.dataset.mview); });
