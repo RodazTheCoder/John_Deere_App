@@ -228,6 +228,7 @@
   .detect-box.hidden{opacity:0; pointer-events:none;}
 
   .cam-risk{display:none;}
+  .cam-fs-btn{display:none;}
   .cam-caption{
     height:36px; flex-shrink:0;
     background:var(--panel);
@@ -669,6 +670,28 @@
     .audio-text #audioLabel{font-size:14.5px;}
     .mute-btn{min-height:clamp(48px, 7vh, 58px); font-size:15px; margin-top:8px;}
 
+    /* tela cheia da câmera (botão no canto; o modo cobre o app todo) */
+    .cam-fs-btn{
+      display:flex; align-items:center; justify-content:center;
+      position:absolute; right:12px; bottom:12px; z-index:4;
+      width:46px; height:46px; color:var(--deere-yellow);
+      background:rgba(17,21,15,.78); border:1px solid rgba(255,222,0,.45); border-radius:9px; cursor:pointer;
+      -webkit-tap-highlight-color:transparent;
+    }
+    .cam-fs-btn svg{width:22px; height:22px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round;}
+    .cam-fs-btn .i-col{display:none;}
+    body.cam-full .cam-fs-btn .i-exp{display:none;}
+    body.cam-full .cam-fs-btn .i-col{display:block;}
+    body.cam-full .camera-panel{position:fixed; inset:0; z-index:60; display:flex !important; flex-direction:column; background:#000;}
+    body.cam-full .camera-view{flex:1;}
+    body.cam-full .cam-caption, body.cam-full .cam-label{display:none;}
+    body.cam-full .rec-chip{top:calc(env(safe-area-inset-top) + 12px);}
+    body.cam-full .cam-fs-btn{top:calc(env(safe-area-inset-top) + 12px); bottom:auto;}
+    body.cam-full .cam-risk{
+      display:flex !important; position:absolute; left:0; right:0; bottom:0; z-index:5;
+      padding-bottom:calc(9px + env(safe-area-inset-bottom));
+    }
+
     /* faixa de nível de risco sob a câmera (só no celular) */
     .cam-risk{
       display:flex; align-items:center; gap:10px; flex-shrink:0;
@@ -801,6 +824,10 @@
         <img class="cam-img" id="camImg" alt="Feed da câmera traseira">
         <div class="rec-chip"><span class="reddot"></span>CÂMERA TRASEIRA · AO VIVO</div>
         <div class="cam-label">320×320 · NCNN</div>
+        <button class="cam-fs-btn" id="camFsBtn" aria-label="Tela cheia da câmera">
+          <svg class="i-exp" viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
+          <svg class="i-col" viewBox="0 0 24 24"><path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"/></svg>
+        </button>
       </div>
       <div class="cam-risk" id="camRisk"><span class="cr-led"></span><span class="cr-text" id="camRiskTxt">Seguro</span><span class="cr-dist" id="camRiskDist">—</span></div>
       <div class="cam-caption" id="camCaption"><b>Conectando</b>&nbsp;— aguardando primeiro quadro da câmera</div>
@@ -1371,6 +1398,7 @@
     if(!MVIEWS.includes(v)) v = 'alerta';
     document.body.dataset.mview = v;
     document.body.classList.remove('lista-aberta');
+    setCamFull(false);
     document.querySelectorAll('#mnav button').forEach(b=>b.classList.toggle('active', b.dataset.mv===v));
     // se estava na aba Histórico do desktop, volta pro painel pra o alerta continuar visível
     document.getElementById('viewPanel').style.display = 'flex';
@@ -1382,6 +1410,21 @@
   document.getElementById('ctxLine').addEventListener('click', ()=>{
     if(mobileMQ.matches && document.getElementById('ctxLine').textContent) document.body.classList.toggle('lista-aberta');
   });
+  // Tela cheia da câmera: cobre o app todo (iPhone não tem a API de tela cheia
+  // pra isso); onde a API existe (Android) também pede tela cheia real.
+  const camFsBtn = document.getElementById('camFsBtn');
+  function setCamFull(on){
+    document.body.classList.toggle('cam-full', on);
+    try{
+      if(on && document.documentElement.requestFullscreen && !document.fullscreenElement){
+        document.documentElement.requestFullscreen({navigationUI:'hide'}).catch(()=>{});
+      } else if(!on && document.fullscreenElement){
+        document.exitFullscreen().catch(()=>{});
+      }
+    }catch(e){}
+  }
+  camFsBtn.addEventListener('click', ()=>setCamFull(!document.body.classList.contains('cam-full')));
+  document.addEventListener('fullscreenchange', ()=>{ if(!document.fullscreenElement) document.body.classList.remove('cam-full'); });
   document.getElementById('listaFechar').addEventListener('click', ()=>document.body.classList.remove('lista-aberta'));
   document.body.dataset.mview = 'alerta';
   if(mobileMQ.matches) setMView(location.hash.slice(1));
