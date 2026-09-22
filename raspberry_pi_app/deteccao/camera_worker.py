@@ -10,8 +10,8 @@ from estado_compartilhado import estado
 def run():
     """Thread de câmera: captura frames, roda YOLO (NCNN) e publica no estado compartilhado.
 
-    Baseado em Teste_Yolo.py, mas sem imshow — o frame anotado vira JPEG e o
-    estado compartilhado passa a ser a única saída (consumida pelo Flask em app.py).
+    O frame anotado vira JPEG e o estado compartilhado é a única saída
+    (consumida pelo Flask em app.py).
     """
     modelo = YOLO(config.MODELO_PATH, task="detect")
 

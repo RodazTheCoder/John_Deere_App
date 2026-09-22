@@ -42,22 +42,11 @@
 
   // Rede criada pelo próprio Raspberry Pi (é ele que sobe o ponto de acesso —
   // no meio do mato não tem roteador nenhum pra conectar os dois). Ver
-  // README.md, seção "Pendências > Raspberry Pi como ponto de acesso WiFi".
+  // docs/configurar_pi_como_ap.md.
   const char* WIFI_SSID = "JohnDeere-Trator";
   const char* WIFI_SENHA = "12345678";
   const char* PI_URL = "http://10.42.0.1:5050/api/entidade"; // IP do hotspot criado pelo nmcli no Pi (trixie)
   const char* PI_ALERTA_URL = "http://10.42.0.1:5050/api/alerta-fisico";
-
-  // TODO (pendente, ver README.md > Pendências): tentamos um heartbeat
-  // próprio (POST /api/heartbeat) pra acender "ESP32 online" no dashboard
-  // mesmo sem entidade nova pra mandar, mas revertido -- o WiFi da placa
-  // ficava recusando reconexão com o erro
-  // "Association refused too many times, max allowed 1", o que indica o
-  // hotspot do Pi (nmcli) só estava aceitando 1 cliente por vez (ou tinha
-  // uma conexão fantasma ocupando a vaga). Investigar isso antes de tentar
-  // heartbeat de novo -- provavelmente precisa aumentar o limite de
-  // clientes do hotspot do lado do Pi. Isso também pode atrapalhar a
-  // consulta de alerta abaixo, se o hotspot recusar a reconexão.
 
   // Consulta o alerta já cruzado (câmera + LoRa) que o Pi calculou, pra
   // fazer o LED/buzzer físico bater exatamente com o semáforo do dashboard

@@ -48,28 +48,6 @@
   letter-spacing:.05em;
 }
 
-.detect-box{
-  position:absolute;
-  border:2px solid var(--amber);
-  border-radius:2px;
-  box-shadow:0 0 0 3000px rgba(0,0,0,0) inset;
-  transition:opacity .25s ease, border-color .25s ease;
-  z-index:2;
-}
-.detect-box::before{
-  content: attr(data-label);
-  position:absolute; top:-22px; left:-2px;
-  font-family:var(--mono); font-size:10.5px; font-weight:600;
-  color:var(--panel); background:var(--amber);
-  padding:2px 6px; border-radius:2px; white-space:nowrap;
-  letter-spacing:.03em;
-}
-.detect-box.confirmed{border-color:var(--green);}
-.detect-box.confirmed::before{background:var(--green); color:#062412;}
-.detect-box.unidentified{border-color:var(--red); animation:none;}
-.detect-box.unidentified::before{background:var(--red); color:#3d0d07;}
-.detect-box.hidden{opacity:0; pointer-events:none;}
-
 .cam-risk{display:none;}
 .cam-fs-btn{display:none;}
 .cam-caption{

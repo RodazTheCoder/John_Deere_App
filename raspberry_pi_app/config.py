@@ -37,25 +37,21 @@ MODELO_PATH = os.path.join(RAIZ_PROJETO, "yolov8n_ncnn_model")
 # cabo serial — ver esp32_firmware/ProjetoLoRa1/ e comunicacao/entidade_receiver.py.
 # Não há nada a configurar aqui do lado do Pi: o SSID/senha da rede ficam no
 # firmware do ESP32, e o Pi só precisa estar rodando como Access Point (ver
-# README.md, seção "Pendências > Raspberry Pi como ponto de acesso WiFi").
+# docs/configurar_pi_como_ap.md).
 
 # ---- Tabela de verdade (distâncias) ----
 DISTANCIA_VERDE_M = 100      # > 100m: seguro
 DISTANCIA_AMARELO_M = 50     # 50-100m: atenção, fora do alcance da câmera
-ALCANCE_CAMERA_M = 50        # < 50m: alcance realista de detecção da câmera na floresta
 
 # ---- Heartbeat (falha nunca deve ser silenciosa) ----
 HEARTBEAT_TIMEOUT_S = 5
 
 # Tempo sem atualização até uma entidade LoRa ser considerada "sumida" (ex:
 # desligou a tag física). Sem isso, o último dado recebido fica valendo pra
-# sempre. O ESP32 só transmite a cada ~3s, com 50% de chance de pular a vez
-# (ver INTERVALO_JANELA_MS no firmware) -- isso cria uma variação real no
-# intervalo entre transmissões (~3-9s típico, mas sequências de "azar"
-# acontecem: com 15s de timeout, ~3% de chance a cada checagem de dar 5
-# pulos seguidos e a entidade "piscar" pra seguro sem ninguém ter saído do
-# lugar). 30s deixa essa chance bem mais rara (~0.1%) sem demorar bobagem
-# pra perceber uma tag desligada de verdade.
+# sempre. O ESP32 transmite a cada ~3s mais um jitter de até 0,7s (ver
+# INTERVALO_JANELA_MS e JITTER_ENVIO_MAX_MS no firmware); 30s tolera vários
+# pacotes perdidos seguidos sem a entidade "piscar" pra seguro, e ainda
+# percebe uma tag desligada de verdade sem demorar.
 ENTIDADE_TIMEOUT_S = 30
 
 # ---- Flask ----

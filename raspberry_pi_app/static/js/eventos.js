@@ -2,7 +2,6 @@
 // must exist before first applyScenario() call at the bottom of this script
 const alertTxt = document.getElementById('alertTxt');
 const ackBtn = document.getElementById('ackBtn');
-const defaultAlertHTML = alertTxt.innerHTML;
 
 const eventLog = [];
 const logList = document.getElementById('logList');

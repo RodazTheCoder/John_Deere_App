@@ -84,7 +84,7 @@ def calcular_alerta(entidades, deteccoes, camera_online, distancia_verde_m=None,
     tipo = entidade["tipo"]
 
     # Detecção visual é a evidência mais forte que existe -- a câmera só
-    # enxerga dentro do alcance real dela (ALCANCE_CAMERA_M), então
+    # enxerga só dentro do alcance real dela, então
     # "detectando" já significa perto de verdade, mesmo que a distância
     # calculada da entidade LoRa diga o contrário (RSSI impreciso, ou pode
     # até ser outra pessoa não rastreada que entrou na área, não
