@@ -9,50 +9,6 @@ O cruzamento dessas duas fontes gera um alerta de 3 níveis (semáforo verde/ama
 
 ---
 
-## Quick start
-
-### Centralizador de dados em 5 minutos
-
-1. Crie o ambiente virtual e instale as dependências do dashboard:
-
-```powershell
-cd "C:\Users\tonii\OneDrive\Área de Trabalho\John_Deere_App"
-py -m venv .venv
-.\.venv\Scripts\Activate.ps1
-pip install Flask pyserial
-```
-
-2. Grave o ESP32 centralizador com o sketch próprio `esp32_firmware/Centralizador/` (não é preciso editar nenhum `#define`):
-
-```powershell
-arduino-cli compile --fqbn esp32:esp32:esp32 esp32_firmware/Centralizador
-arduino-cli upload -p COM3 --fqbn esp32:esp32:esp32 esp32_firmware/Centralizador
-```
-
-3. Inicie o dashboard centralizador:
-
-```powershell
-cd centralizador_de_dados
-python app.py
-```
-
-4. Acesse:
-
-```text
-http://localhost:5001
-```
-
-Se a porta não for a COM correta, use:
-
-```powershell
-$env:CENTRALIZADOR_PORT = "COM3"
-python app.py
-```
-
-> O app já ignora mensagens de diagnóstico do GPS e do firmware, e automaticamente fecha a serial ao encerrar para evitar bloqueio da porta.
-
----
-
 ## Arquitetura
 
 ```
@@ -121,12 +77,17 @@ raspberry_pi_app/
 │   └── entidade_receiver.py  Valida o payload que o ESP32 manda por WiFi
 ├── deteccao/
 │   └── camera_worker.py      Thread de câmera: captura + YOLO/NCNN
-├── templates/dashboard.html  Painel do operador
-└── tests/                    29 testes automatizados, sem depender de hardware
+├── templates/
+│   ├── dashboard.html        Esqueleto da página (só monta as partes)
+│   └── partials/             Cabeçalho, câmera, painel lateral, alerta, histórico, entidades, demo, menu móvel
+├── static/
+│   ├── css/                  Estilos por área (base, câmera, radar, semáforo, celular, horizontal...)
+│   └── js/                   Scripts por área, carregados em ordem (ver dashboard.html)
+└── tests/                    36 testes automatizados, sem depender de hardware
 
-esp32_firmware/ProjetoLoRa1/  Firmware dos nós (GPS + LoRa + WiFi opcional)
+esp32_firmware/ProjetoLoRa1/  Firmware único (GPS + LoRa + WiFi opcional)
 esp32_firmware/Centralizador/ Firmware do ESP32 centralizador (só recebe LoRa e repassa pela serial)
-centralizador_de_dados/       App Flask que lê a serial do centralizador e mostra o mapa (porta 5001)
+centralizador_de_dados/       App Flask do mapa geral (lê a serial do centralizador, porta 5001)
 yolov8n_ncnn_model/           Modelo exportado (YOLOv8n → NCNN, imgsz=320 fixo)
 docs/configurar_pi_como_ap.md Guia de configuração do hotspot do Pi
 ```
@@ -154,6 +115,35 @@ Cada nó lê sua posição por GPS, transmite por LoRa periodicamente, e calcula
 **Valores que exigem calibração de campo real** (não indoor a curta distância — RSSI não é confiável nessa faixa): `LORA_RSSI_1M` e `EXPOENTE_PERDA_AMBIENTE`.
 
 ---
+
+## Centralizador de dados (mapa geral)
+
+Um ESP32 dedicado, no centro da área (a "base"), só **escuta** o LoRa de todos os módulos e repassa cada pacote, sem alterar, pela USB. Um app Flask no computador da base lê essa serial e mostra todos os tratores e pessoas num mapa. Não usa WiFi nem o Raspberry Pi, e é independente do painel do trator.
+
+```
+módulos LoRa ──► ESP32 centralizador ──USB (9600)──► centralizador_de_dados/app.py ──► mapa (:5001)
+```
+
+- **Firmware:** `esp32_firmware/Centralizador/Centralizador.ino`. Os parâmetros de rádio (915 MHz, sync `0x34`, SF9, 125 kHz, CR 4/8, CRC) **precisam ser iguais** aos de `ProjetoLoRa1.ino`, senão os módulos param de se ouvir sem nenhum erro visível.
+- **App:** guarda cada veículo e os últimos 120 pontos do trajeto. Aceita o pacote CSV `id,tipo,lat,lon,alt,vel,curso` (o mesmo do LoRa) ou JSON. Um veículo sem pacote há mais de 15 s aparece em cinza.
+- **Rotas:** `GET /` (mapa), `GET /api/veiculos`, `GET /api/health` (porta serial, últimos pacotes).
+- **Mapa:** o Leaflet vem junto do repositório (`static/leaflet/`); só as imagens de fundo precisam de internet. Sem internet os pontos aparecem sobre fundo cinza.
+
+```bash
+# gravar o ESP32 centralizador
+arduino-cli compile --fqbn esp32:esp32:esp32 esp32_firmware/Centralizador
+arduino-cli upload -p <porta> --fqbn esp32:esp32:esp32 esp32_firmware/Centralizador
+
+# rodar o app (a partir da raiz do repositório)
+pip install flask pyserial
+python -m centralizador_de_dados.app                                    # http://localhost:5001
+CENTRALIZADOR_PORT=/dev/cu.usbserial-XXXX python -m centralizador_de_dados.app   # porta manual (COMx no Windows)
+
+# testes
+python -m pytest centralizador_de_dados/tests
+```
+
+**Problemas comuns:** `PermissionError` ou porta ocupada, feche o Serial Monitor do Arduino e qualquer outro programa que use a porta; mapa vazio, confira o sketch gravado (`Centralizador`, não `ProjetoLoRa1`) e a porta em `/api/health`.
 
 ## Setup local (Mac, Linux ou Windows)
 
@@ -185,280 +175,3 @@ python -m pytest tests/ -v
 arduino-cli compile --fqbn esp32:esp32:esp32 esp32_firmware/ProjetoLoRa1
 arduino-cli upload -p <porta> --fqbn esp32:esp32:esp32 esp32_firmware/ProjetoLoRa1
 ```
-
----
-
-## Atualização: centralizador de dados via serial
-
-A arquitetura do projeto foi estendida para incluir um dashboard centralizado em Python, alimentado por um ESP32 dedicado em modo centralizador. Nesse fluxo, os módulos LoRa espalhados no campo enviam os dados para o ESP centralizador, que apenas recebe e repassa a informação pela porta serial USB para a aplicação Flask.
-
-### Fluxo atual
-
-```text
-Módulos LoRa no campo
-        ↓
-ESP32 centralizador
-        ↓
-Serial USB (COMx / /dev/ttyUSBx)
-        ↓
-centralizador_de_dados/app.py
-        ↓
-Dashboard em Flask com mapa e histórico de posições
-```
-
-### O que foi implementado
-
-- Novo app em `centralizador_de_dados/app.py` para receber dados serializados de um ESP32 centralizador.
-- Descoberta automática da porta serial com fallback para `COM3` / `/dev/ttyUSB0`.
-- Suporte a payload em JSON ou CSV, mantendo o mesmo formato do firmware do ESP32.
-- Filtro de linhas de diagnóstico do GPS e mensagens internas do firmware para não poluir o payload real.
-- Fechamento correto da serial em `atexit` e ao encerrar a aplicação.
-- Desativação do reloader do Flask para evitar duas threads simultâneas lendo a mesma COM.
-- Dashboard com mapa, lista de veículos e histórico de localização por veículo.
-
-### Estrutura da nova parte do projeto
-
-```text
-centralizador_de_dados/
-├── app.py
-├── templates/
-│   └── dashboard.html
-├── tests/
-│   └── test_serial_parser.py
-└── __init__.py
-```
-
----
-
-## Como rodar o app do centralizador
-
-### 1) Preparar o ambiente Python
-
-No Windows PowerShell:
-
-```powershell
-cd "C:\Users\tonii\OneDrive\Área de Trabalho\John_Deere_App"
-py -m venv .venv
-.\.venv\Scripts\Activate.ps1
-pip install Flask pyserial
-```
-
-No Linux/macOS:
-
-```bash
-cd /caminho/para/John_Deere_App
-python3 -m venv .venv
-source .venv/bin/activate
-pip install Flask pyserial
-```
-
-### 2) Executar o dashboard
-
-```bash
-cd centralizador_de_dados
-python app.py
-```
-
-A aplicação abre em:
-
-```text
-http://localhost:5001
-```
-
-### 3) Configurar a porta serial (opcional)
-
-Se a porta do ESP centralizador não for a padrão, defina manualmente a variável de ambiente:
-
-PowerShell:
-
-```powershell
-$env:CENTRALIZADOR_PORT = "COM3"
-python app.py
-```
-
-Linux/macOS:
-
-```bash
-export CENTRALIZADOR_PORT=/dev/ttyUSB0
-python app.py
-```
-
-Também é possível ajustar a baud rate:
-
-```powershell
-$env:CENTRALIZADOR_BAUD = "9600"
-```
-
-### 4) Verificar se a aplicação está funcionando
-
-Abra no navegador:
-
-```text
-http://localhost:5001
-```
-
-E teste a API de saúde:
-
-```text
-http://localhost:5001/api/health
-```
-
-Resposta esperada:
-
-```json
-{"ok": true, "veiculos_ativos": 0, "porta_serial": "COM3"}
-```
-
----
-
-## Como configurar o ESP centralizador
-
-O centralizador tem sketch próprio em `esp32_firmware/Centralizador/Centralizador.ino`, separado do firmware dos nós (`ProjetoLoRa1`). Não há `#define` para configurar: ele só recebe pacotes LoRa e escreve cada um, cru, na serial USB (9600 baud). Não transmite, não usa GPS, WiFi nem LEDs.
-
-### Regra importante
-
-Os parâmetros de rádio (915 MHz, sync word `0x34`, SF9, BW 125 kHz, CR 4/8, CRC) devem ser iguais nos dois sketches. Se um mudar e o outro não, os módulos deixam de se ouvir sem nenhum erro visível. O formato do pacote (`id,tipo,lat,lon,alt,vel,curso`) também deve coincidir.
-
-### Compilar e gravar o firmware
-
-```bash
-arduino-cli compile --fqbn esp32:esp32:esp32 esp32_firmware/Centralizador
-arduino-cli upload -p COM3 --fqbn esp32:esp32:esp32 esp32_firmware/Centralizador
-```
-
-Atenção:
-
-- se a porta estiver errada, o upload ou a leitura da serial falha
-- se a IDE serial do Arduino estiver aberta, a mesma COM pode ficar bloqueada
-- certifique-se de que a conexão USB do ESP centralizador seja a correta
-
----
-
-## Formato do payload esperado
-
-O parser no app aceita dois formatos:
-
-### 1) JSON
-
-```json
-{"id":"tractor-01","tipo":"trator","latitude":-23.5505,"longitude":-46.6333,"velocidade_kmh":12.5,"rssi_dbm":-60}
-```
-
-### 2) CSV
-
-```text
-tractor-01,trator,-23.5505,-46.6333,10.5,12.5,90,-60
-```
-
-Estrutura da linha CSV:
-
-```text
-id,tipo,latitude,longitude,altitude,velocidade,curso,rssi
-```
-
-Se o firmware estiver enviando linhas extras como `[GPS]` ou `AVISO:` no mesmo stream, o app passa a descartar essas linhas como ruído.
-
----
-
-## Erros comuns e como resolver
-
-### 1) `PermissionError(13, 'Acesso negado.')`
-
-Causa mais comum:
-
-- outra aplicação já está usando a porta serial
-- Arduino IDE com Serial Monitor aberto
-- outra instância do dashboard rodando
-
-Solução:
-
-```powershell
-mode COM3
-```
-
-Se a porta estiver em uso, feche o monitor serial e reinicie o app.
-
-Também pode ser útil verificar se o Python está rodando duas vezes:
-
-```powershell
-Get-Process python -ErrorAction SilentlyContinue
-```
-
-### 2) `Linha serial descartada ...`
-
-Isso acontece quando a linha recebida não bate com o formato esperado ou quando o firmware envia texto de diagnóstico junto com o payload real.
-
-Soluções:
-
-- verificar se o ESP está gravado com `esp32_firmware/Centralizador` e não com o firmware dos nós
-- garantir que as mensagens `[GPS]` e `AVISO` não sejam enviadas pela serial de telemetria
-- confirmar se o payload continua sendo `id,tipo,latitude,longitude,...` e não com texto extra
-- validar com um monitor serial simples antes de abrir o dashboard
-
-### 3) Nenhum ponto aparece no mapa
-
-Possíveis causas:
-
-- ESP centralizador não está recebendo pacotes LoRa
-- o ESP não está gravado com o sketch `esp32_firmware/Centralizador`
-- a porta serial escolhida está errada
-- o payload foi descartado por estar em formato inválido
-- o Flask está rodando com reloader ativado e duplicando threads
-
-Validação rápida:
-
-```powershell
-cd centralizador_de_dados
-python -c "import app; print(app.SERIAL_PORT); print(app.descobrir_porta_serial())"
-```
-
-Se o retorno não mostrar a COM correta, ajuste a variável `CENTRALIZADOR_PORT` antes de iniciar.
-
-### 4) O programa abre a porta mais de uma vez
-
-Causa:
-
-- o Flask entrou em debug mode com `use_reloader=True`
-- o app foi iniciado mais de uma vez sem encerrar corretamente a serial
-
-Solução já aplicada no código:
-
-```python
-app.run(host="0.0.0.0", port=5001, debug=False, use_reloader=False)
-```
-
-### 5) `[GPS]` e mensagens de diagnóstico aparecem no dashboard
-
-Causa:
-
-- o ESP foi gravado com o firmware dos nós (`ProjetoLoRa1`), que imprime logs de GPS na serial, em vez do sketch do centralizador
-
-Solução:
-
-- regravar o ESP com `esp32_firmware/Centralizador`, que só escreve o payload útil na serial
-
-### 6) Porta serial fica travada no Windows
-
-Se a COM continuar bloqueada mesmo após encerrar o app, o problema está em outra aplicação usando a porta. O fluxo recomendado é:
-
-1. fechar o Serial Monitor do Arduino
-2. fechar qualquer outra janela de debug serial
-3. encerrar qualquer processo Python em execução
-4. reiniciar o dashboard
-
----
-
-## Checklist de validação final
-
-Antes de considerar o sistema funcionando:
-
-- [ ] o ESP centralizador está gravado com o sketch `esp32_firmware/Centralizador`
-- [ ] a porta serial correta está sendo aberta pela aplicação
-- [ ] o app Flask foi iniciado com `debug=False` e `use_reloader=False`
-- [ ] o payload recebido está em CSV/JSON compatível com o parser
-- [ ] não há linhas `[GPS]` ou `AVISO:` sendo enviadas pela serial de dados
-- [ ] o dashboard mostra os veículos e os pontos no mapa
-
-Com esse setup, a centralização de dados fica estável e a dashboard passa a receber os veículos em tempo real sem poluir o stream com mensagens internas do firmware.
-
----
