@@ -31,7 +31,7 @@ def _gerar_stream_mjpeg():
             b"--frame\r\n"
             b"Content-Type: image/jpeg\r\n\r\n" + frame_jpeg + b"\r\n"
         )
-        time.sleep(1 / 30)  # limita a ~30fps, sem isso o loop reenvia o mesmo frame o mais rápido possível
+        time.sleep(1 / 30)  # limita a ~30fps, sem isso o loop reenvia o mesmo frame o mais rápido possível      
 
 
 @app.route("/video_feed")

@@ -1,0 +1,1 @@
+"""Dashboard centralizadora de dados."""

@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Centralizador de Dados</title>
+    <link rel="stylesheet" href="/static/leaflet/leaflet.css" />
+    <style>
+      :root {
+        --deere-green: #367c2b;
+        --deere-green-dark: #285c20;
+        --deere-yellow: #ffde00;
+        --bg: #1b1e1a;
+        --panel: #242822;
+        --panel-soft: #2e332b;
+        --text: #eef0ea;
+        --muted: #a3ab99;
+        --danger: #e0533d;
+        --idle: #7b8275;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: Arial, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+      }
+      .topbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+        padding: 14px 20px;
+        background: var(--deere-green);
+        border-bottom: 4px solid var(--deere-yellow);
+      }
+      .title { font-weight: bold; font-size: 1.2rem; color: #fff; }
+      .subtitle { font-size: 0.8rem; color: rgba(255,255,255,0.8); }
+      .status-bar { display: flex; gap: 8px; flex-wrap: wrap; }
+      .pill {
+        background: rgba(0,0,0,0.25);
+        color: #fff;
+        padding: 6px 10px;
+        border-radius: 999px;
+        font-size: 0.85rem;
+        white-space: nowrap;
+      }
+      .pill.ok { background: rgba(255,222,0,0.18); color: var(--deere-yellow); border: 1px solid rgba(255,222,0,0.5); }
+      .pill.bad { background: rgba(224,83,61,0.25); color: #ffd2c9; border: 1px solid var(--danger); }
+      .layout {
+        display: flex;
+        min-height: calc(100vh - 80px);
+      }
+      .sidebar {
+        width: 360px;
+        background: var(--panel);
+        border-right: 1px solid rgba(163,171,153,0.25);
+        padding: 18px 16px;
+      }
+      .card {
+        background: var(--panel-soft);
+        border-radius: 12px;
+        border: 1px solid rgba(163,171,153,0.18);
+        padding: 12px 14px;
+        margin-bottom: 14px;
+      }
+      .card h3 { margin: 0 0 10px; }
+      .veiculo-list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        max-height: 55vh;
+        overflow: auto;
+      }
+      .veiculo-item {
+        background: rgba(0,0,0,0.25);
+        border-radius: 8px;
+        padding: 8px 10px;
+        border-left: 5px solid var(--deere-green);
+        font-size: 0.9rem;
+        cursor: pointer;
+      }
+      .veiculo-item.pessoa { border-left-color: var(--deere-yellow); }
+      .veiculo-item.semsinal { border-left-color: var(--idle); opacity: 0.6; }
+      .veiculo-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+      .tag {
+        font-size: 0.7rem;
+        font-weight: bold;
+        padding: 2px 8px;
+        border-radius: 999px;
+        background: var(--deere-green);
+        color: #fff;
+      }
+      .tag.pessoa { background: var(--deere-yellow); color: #1b1e1a; }
+      .tag.semsinal { background: var(--idle); color: #fff; }
+      .veiculo-item div.linha { color: var(--muted); }
+      .legend { font-size: 0.8rem; color: var(--muted); }
+      .legend span.dot {
+        display: inline-block; width: 10px; height: 10px; border-radius: 50%;
+        margin: 0 4px 0 10px; vertical-align: middle;
+      }
+      button.enquadrar {
+        width: 100%;
+        background: var(--deere-green);
+        color: #fff;
+        border: 1px solid var(--deere-yellow);
+        border-radius: 8px;
+        padding: 8px;
+        font-size: 0.9rem;
+        cursor: pointer;
+      }
+      button.enquadrar:hover { background: var(--deere-green-dark); }
+      .map-area { flex: 1; position: relative; }
+      #map { width: 100%; height: 100%; min-height: 500px; background: #3a3f36; }
+      @media (max-width: 800px) {
+        .layout { flex-direction: column; }
+        .sidebar { width: 100%; }
+        #map { min-height: 60vh; }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="topbar">
+      <div>
+        <div class="title">Centralizador de Dados</div>
+        <div class="subtitle">Monitoramento LoRa em tempo real</div>
+      </div>
+      <div class="status-bar">
+        <div class="pill" id="pill-serial">Serial: --</div>
+        <div class="pill" id="pill-pacote">Último pacote: --</div>
+        <div class="pill" id="pill-contagem">Veículos: 0</div>
+      </div>
+    </header>
+
+    <div class="layout">
+      <aside class="sidebar">
+        <div class="card">
+          <h3>Veículos em tempo real</h3>
+          <div id="veiculos-list" class="veiculo-list"></div>
+        </div>
+        <div class="card">
+          <button class="enquadrar" id="btn-enquadrar">Enquadrar veículos no mapa</button>
+          <div class="legend" style="margin-top:10px">
+            <span class="dot" style="background:#367c2b;margin-left:0"></span>Trator
+            <span class="dot" style="background:#ffde00"></span>Pessoa
+            <span class="dot" style="background:#7b8275"></span>Sem sinal
+          </div>
+        </div>
+      </aside>
+
+      <main class="map-area">
+        <div id="map"></div>
+      </main>
+    </div>
+
+    <script src="/static/leaflet/leaflet.js"></script>
+    <script>
+      const SEM_SINAL_S = 15;
+      const map = L.map('map').setView([-23.5505, -46.6333], 7);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '© OpenStreetMap'
+      }).addTo(map);
+
+      const markers = new Map();
+      const historyLines = new Map();
+      let ultimosVeiculos = [];
+      let enquadrouMapa = false;
+
+      function esc(texto) {
+        return String(texto).replace(/[&<>"']/g, (c) => (
+          { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+        ));
+      }
+
+      function ehPessoa(veiculo) { return veiculo.tipo === 'pessoa'; }
+      function semSinal(veiculo) { return Number(veiculo.segundos_sem_sinal || 0) > SEM_SINAL_S; }
+
+      function estiloMarcador(veiculo) {
+        if (semSinal(veiculo)) {
+          return { radius: 9, color: '#4a5044', fillColor: '#7b8275', fillOpacity: 0.7, weight: 2 };
+        }
+        if (ehPessoa(veiculo)) {
+          return { radius: 8, color: '#1b1e1a', fillColor: '#ffde00', fillOpacity: 0.95, weight: 2 };
+        }
+        return { radius: 11, color: '#ffde00', fillColor: '#367c2b', fillOpacity: 0.95, weight: 3 };
+      }
+
+      function corHistorico(veiculo) {
+        if (semSinal(veiculo)) return '#7b8275';
+        return ehPessoa(veiculo) ? '#ffde00' : '#4fae3f';
+      }
+
+      function textoTempo(segundos) {
+        const s = Math.round(Number(segundos || 0));
+        if (s < 60) return `${s}s`;
+        return `${Math.floor(s / 60)}min ${s % 60}s`;
+      }
+
+      function popup(veiculo) {
+        const estado = semSinal(veiculo) ? `sem sinal há ${textoTempo(veiculo.segundos_sem_sinal)}` : 'ativo';
+        return `<strong>${esc(veiculo.nome)}</strong><br>Tipo: ${esc(veiculo.tipo)}<br>` +
+          `Velocidade: ${Number(veiculo.velocidade_kmh || 0).toFixed(1)} km/h<br>Status: ${estado}`;
+      }
+
+      function ordenar(veiculos) {
+        return [...veiculos].sort((a, b) => {
+          const sa = semSinal(a) ? 1 : 0;
+          const sb = semSinal(b) ? 1 : 0;
+          if (sa !== sb) return sa - sb;
+          return Number(a.segundos_sem_sinal) - Number(b.segundos_sem_sinal);
+        });
+      }
+
+      function renderVeiculos(veiculos) {
+        const list = document.getElementById('veiculos-list');
+        list.innerHTML = '';
+        if (!veiculos.length) {
+          list.innerHTML = '<div class="legend">Nenhum veículo ativo.</div>';
+          return;
+        }
+
+        ordenar(veiculos).forEach((veiculo) => {
+          const sem = semSinal(veiculo);
+          const item = document.createElement('div');
+          item.className = `veiculo-item ${ehPessoa(veiculo) ? 'pessoa' : 'trator'}${sem ? ' semsinal' : ''}`;
+          item.innerHTML = `
+            <div class="veiculo-head">
+              <strong>${esc(veiculo.nome)}</strong>
+              <span class="tag ${sem ? 'semsinal' : (ehPessoa(veiculo) ? 'pessoa' : '')}">${sem ? 'SEM SINAL' : esc(veiculo.tipo).toUpperCase()}</span>
+            </div>
+            <div class="linha">Último dado: há ${textoTempo(veiculo.segundos_sem_sinal)}</div>
+            <div class="linha">Velocidade: ${Number(veiculo.velocidade_kmh || 0).toFixed(1)} km/h</div>
+            <div class="linha">Lat/Lon: ${Number(veiculo.latitude).toFixed(5)}, ${Number(veiculo.longitude).toFixed(5)}</div>
+          `;
+          item.addEventListener('click', () => {
+            map.setView([veiculo.latitude, veiculo.longitude], Math.max(map.getZoom(), 17));
+            const marker = markers.get(veiculo.id);
+            if (marker) marker.openPopup();
+          });
+          list.appendChild(item);
+        });
+      }
+
+      function desenharHistorico(veiculo) {
+        const coords = (veiculo.historico || []).map((p) => [p.latitude, p.longitude]);
+        if (historyLines.has(veiculo.id)) {
+          map.removeLayer(historyLines.get(veiculo.id));
+          historyLines.delete(veiculo.id);
+        }
+        if (coords.length < 2) return;
+        const line = L.polyline(coords, { color: corHistorico(veiculo), weight: 3, opacity: 0.75 }).addTo(map);
+        historyLines.set(veiculo.id, line);
+      }
+
+      function enquadrar() {
+        if (!ultimosVeiculos.length) return;
+        const pontos = ultimosVeiculos.map((v) => [v.latitude, v.longitude]);
+        map.fitBounds(pontos, { maxZoom: 18, padding: [40, 40] });
+      }
+
+      function updateMap(veiculos) {
+        const idsAtuais = new Set(veiculos.map((veiculo) => veiculo.id));
+
+        markers.forEach((marker, id) => {
+          if (!idsAtuais.has(id)) {
+            map.removeLayer(marker);
+            markers.delete(id);
+          }
+        });
+
+        historyLines.forEach((linha, id) => {
+          if (!idsAtuais.has(id)) {
+            map.removeLayer(linha);
+            historyLines.delete(id);
+          }
+        });
+
+        veiculos.forEach((veiculo) => {
+          const position = [veiculo.latitude, veiculo.longitude];
+          desenharHistorico(veiculo);
+
+          if (markers.has(veiculo.id)) {
+            const marker = markers.get(veiculo.id);
+            marker.setLatLng(position);
+            marker.setStyle(estiloMarcador(veiculo));
+            marker.setRadius(estiloMarcador(veiculo).radius);
+            marker.setPopupContent(popup(veiculo));
+            return;
+          }
+
+          const marker = L.circleMarker(position, estiloMarcador(veiculo)).addTo(map);
+          marker.bindPopup(popup(veiculo));
+          markers.set(veiculo.id, marker);
+        });
+
+        // Sem tiles (offline) o mapa fica cinza; enquadra nos veiculos pra os pontos aparecerem.
+        if (!enquadrouMapa && veiculos.length) {
+          enquadrar();
+          enquadrouMapa = true;
+        }
+      }
+
+      function atualizarStatus(health, veiculos) {
+        const serial = document.getElementById('pill-serial');
+        const pacote = document.getElementById('pill-pacote');
+        const contagem = document.getElementById('pill-contagem');
+
+        if (!health) {
+          serial.textContent = 'Servidor: sem resposta';
+          serial.className = 'pill bad';
+        } else if (health.serial_conectada) {
+          serial.textContent = `Serial: conectada (${health.porta_serial})`;
+          serial.className = 'pill ok';
+        } else {
+          serial.textContent = `Serial: desconectada (${health.porta_serial})`;
+          serial.className = 'pill bad';
+        }
+
+        if (health && health.segundos_desde_ultimo_pacote !== null && health.segundos_desde_ultimo_pacote !== undefined) {
+          pacote.textContent = `Último pacote: há ${textoTempo(health.segundos_desde_ultimo_pacote)}`;
+          pacote.className = health.segundos_desde_ultimo_pacote > SEM_SINAL_S ? 'pill bad' : 'pill ok';
+        } else {
+          pacote.textContent = 'Último pacote: nenhum ainda';
+          pacote.className = 'pill';
+        }
+
+        const tratores = veiculos.filter((v) => !ehPessoa(v)).length;
+        const pessoas = veiculos.length - tratores;
+        contagem.textContent = `Tratores: ${tratores} | Pessoas: ${pessoas}`;
+      }
+
+      async function carregarDados() {
+        let health = null;
+        let veiculos = [];
+        try {
+          const [h, v] = await Promise.all([fetch('/api/health'), fetch('/api/veiculos')]);
+          health = await h.json();
+          veiculos = (await v.json()).veiculos || [];
+        } catch (error) {
+          console.error('Erro ao carregar dados:', error);
+          atualizarStatus(null, ultimosVeiculos);
+          return;
+        }
+        ultimosVeiculos = veiculos;
+        atualizarStatus(health, veiculos);
+        renderVeiculos(veiculos);
+        updateMap(veiculos);
+      }
+
+      document.getElementById('btn-enquadrar').addEventListener('click', enquadrar);
+      setInterval(carregarDados, 3000);
+      carregarDados();
+    </script>
+  </body>
+</html>

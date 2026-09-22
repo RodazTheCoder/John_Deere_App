@@ -86,6 +86,8 @@ raspberry_pi_app/
 └── tests/                    36 testes automatizados, sem depender de hardware
 
 esp32_firmware/ProjetoLoRa1/  Firmware único (GPS + LoRa + WiFi opcional)
+esp32_firmware/Centralizador/ Firmware do ESP32 centralizador (só recebe LoRa e repassa pela serial)
+centralizador_de_dados/       App Flask do mapa geral (lê a serial do centralizador, porta 5001)
 yolov8n_ncnn_model/           Modelo exportado (YOLOv8n → NCNN, imgsz=320 fixo)
 docs/configurar_pi_como_ap.md Guia de configuração do hotspot do Pi
 ```
@@ -113,6 +115,35 @@ Cada nó lê sua posição por GPS, transmite por LoRa periodicamente, e calcula
 **Valores que exigem calibração de campo real** (não indoor a curta distância — RSSI não é confiável nessa faixa): `LORA_RSSI_1M` e `EXPOENTE_PERDA_AMBIENTE`.
 
 ---
+
+## Centralizador de dados (mapa geral)
+
+Um ESP32 dedicado, no centro da área (a "base"), só **escuta** o LoRa de todos os módulos e repassa cada pacote, sem alterar, pela USB. Um app Flask no computador da base lê essa serial e mostra todos os tratores e pessoas num mapa. Não usa WiFi nem o Raspberry Pi, e é independente do painel do trator.
+
+```
+módulos LoRa ──► ESP32 centralizador ──USB (9600)──► centralizador_de_dados/app.py ──► mapa (:5001)
+```
+
+- **Firmware:** `esp32_firmware/Centralizador/Centralizador.ino`. Os parâmetros de rádio (915 MHz, sync `0x34`, SF9, 125 kHz, CR 4/8, CRC) **precisam ser iguais** aos de `ProjetoLoRa1.ino`, senão os módulos param de se ouvir sem nenhum erro visível.
+- **App:** guarda cada veículo e os últimos 120 pontos do trajeto. Aceita o pacote CSV `id,tipo,lat,lon,alt,vel,curso` (o mesmo do LoRa) ou JSON. Um veículo sem pacote há mais de 15 s aparece em cinza.
+- **Rotas:** `GET /` (mapa), `GET /api/veiculos`, `GET /api/health` (porta serial, últimos pacotes).
+- **Mapa:** o Leaflet vem junto do repositório (`static/leaflet/`); só as imagens de fundo precisam de internet. Sem internet os pontos aparecem sobre fundo cinza.
+
+```bash
+# gravar o ESP32 centralizador
+arduino-cli compile --fqbn esp32:esp32:esp32 esp32_firmware/Centralizador
+arduino-cli upload -p <porta> --fqbn esp32:esp32:esp32 esp32_firmware/Centralizador
+
+# rodar o app (a partir da raiz do repositório)
+pip install flask pyserial
+python -m centralizador_de_dados.app                                    # http://localhost:5001
+CENTRALIZADOR_PORT=/dev/cu.usbserial-XXXX python -m centralizador_de_dados.app   # porta manual (COMx no Windows)
+
+# testes
+python -m pytest centralizador_de_dados/tests
+```
+
+**Problemas comuns:** `PermissionError` ou porta ocupada, feche o Serial Monitor do Arduino e qualquer outro programa que use a porta; mapa vazio, confira o sketch gravado (`Centralizador`, não `ProjetoLoRa1`) e a porta em `/api/health`.
 
 ## Setup local (Mac, Linux ou Windows)
 
