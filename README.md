@@ -154,11 +154,12 @@ git clone https://github.com/RodazTheCoder/John_Deere_App.git
 cd John_Deere_App
 python3 -m venv venv          # Windows: py -m venv venv
 source venv/bin/activate      # Windows PowerShell: venv\Scripts\Activate.ps1
-pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
-pip install -r raspberry_pi_app/requirements.txt
+./install.sh                  # instala tudo aos poucos (evita travar por falta de RAM no Pi)
 cd raspberry_pi_app
 python app.py
 ```
+
+O `install.sh` instala cada dependência separadamente, em vez de tudo de uma vez (`pip install -r requirements.txt`), porque no Raspberry Pi isso costuma travar ou matar o processo por falta de RAM. Se um pacote específico travar, rode só aquele comando de novo; se persistir, aumente o swap do Pi antes de tentar de novo. No Windows sem Git Bash/WSL, roda cada linha do `install.sh` direto no PowerShell.
 
 Abre em `http://127.0.0.1:5050/` (porta 5050, não 5000 — no macOS a 5000 é ocupada pelo AirPlay Receiver). O modelo NCNN já vem no repositório, não precisa exportar de novo.
 
