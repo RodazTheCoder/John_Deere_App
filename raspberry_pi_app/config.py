@@ -28,7 +28,20 @@ JPEG_QUALIDADE = 60  # 0-100; só afeta o vídeo exibido, não a detecção (já
 # trocar pra "vulkan:0", é só voltar pra "cpu" e resincronizar.
 DEVICE = "cpu"  # "vulkan:0" travou o driver Mesa/v3dv no teste real -- não usar sem investigar mais
 CONF_THRESHOLD = 0.4
-CLASSE_PESSOA = 0  # índice "person" no COCO
+
+# Classes do COCO que a câmera detecta. O modelo é o YOLOv8n padrão (80
+# classes do COCO, ver yolov8n_ncnn_model/metadata.yaml) -- não é um dataset
+# diferente, só estava filtrado pra só "person". Não existe classe "trator"
+# no COCO; car/truck cobrem carro, pickup e trator (visualmente o mais
+# próximo). Pra lógica de alerta (logica_alerta.py) tanto faz qual classe:
+# qualquer detecção já conta como "câmera vendo algo perto" (crítico).
+CLASSES_DETECTAR = {
+    0: "Pessoa",
+    2: "Carro",
+    3: "Moto",
+    5: "Ônibus",
+    7: "Caminhão/Trator",
+}
 
 MODELO_PATH = os.path.join(RAIZ_PROJETO, "yolov8n_ncnn_model")
 

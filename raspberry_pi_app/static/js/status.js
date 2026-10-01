@@ -28,7 +28,8 @@ async function pollStatusReal(){
     if(!s.camera_online){
       camCaption.innerHTML = '<b>CÂMERA OFFLINE</b> — sem sinal do Raspberry Pi';
     } else if(s.deteccoes.length > 0){
-      camCaption.innerHTML = `<b>Detecção</b> — ${s.deteccoes.length} pessoa(s) no quadro atual`;
+      const rotulos = s.deteccoes.map(d => d.rotulo || '?').join(', ');
+      camCaption.innerHTML = `<b>Detecção</b> — ${rotulos} no quadro atual`;
     } else {
       camCaption.innerHTML = '<b>Aguardando</b> — nenhuma detecção no quadro atual';
     }

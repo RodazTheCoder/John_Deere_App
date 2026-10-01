@@ -26,6 +26,12 @@ def run():
     while True:
         ret, frame = cap.read()
         if not ret:
+            # Fonte é um arquivo de vídeo (não webcam/índice) e chegou ao
+            # fim -- volta pro começo em vez de travar parado. Útil pra
+            # testar com um vídeo gravado em loop; não afeta câmera de verdade.
+            if isinstance(config.CAMERA_SOURCE, str):
+                cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+                continue
             time.sleep(0.5)
             continue
 
@@ -37,7 +43,7 @@ def run():
                 frame,
                 imgsz=config.INFERENCE_SIZE,
                 conf=config.CONF_THRESHOLD,
-                classes=[config.CLASSE_PESSOA],
+                classes=list(config.CLASSES_DETECTAR),
                 device=config.DEVICE,
                 verbose=False,
             )[0]
@@ -47,12 +53,14 @@ def run():
                 for box in resultados.boxes:
                     x1, y1, x2, y2 = map(int, box.xyxy[0])
                     conf = float(box.conf[0])
-                    ultimas_caixas.append({"x1": x1, "y1": y1, "x2": x2, "y2": y2, "conf": conf})
+                    classe = int(box.cls[0])
+                    rotulo = config.CLASSES_DETECTAR.get(classe, "?")
+                    ultimas_caixas.append({"x1": x1, "y1": y1, "x2": x2, "y2": y2, "conf": conf, "rotulo": rotulo})
 
         for caixa in ultimas_caixas:
             cv2.rectangle(frame, (caixa["x1"], caixa["y1"]), (caixa["x2"], caixa["y2"]), (0, 255, 0), 2)
             cv2.putText(
-                frame, f"Pessoa {caixa['conf']:.2f}", (caixa["x1"], caixa["y1"] - 10),
+                frame, f"{caixa['rotulo']} {caixa['conf']:.2f}", (caixa["x1"], caixa["y1"] - 10),
                 cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2
             )
 
