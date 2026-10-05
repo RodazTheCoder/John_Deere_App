@@ -647,7 +647,7 @@ void loop() {
     ultimoDiagnosticoGPS = millis();
   }
 
-  if ((millis() - ultimoEnvio > proximoIntervaloEnvioMs) && (perma_state_Lora != 2)) {
+  if ((perma_state_Lora == 1) || (millis() - ultimoEnvio > proximoIntervaloEnvioMs)) && (perma_state_Lora != 2) {
     // Com poucos nós (hoje: 2), transmite sempre -- não sorteia mais SE
     // transmite (isso deixava a atualização de distância lenta e instável,
     // ~6s de média). Em vez disso, sorteia QUANDO dentro da janela (jitter),
