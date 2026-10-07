@@ -139,8 +139,8 @@ float distanciaRSSISuavizada = -1;
 // não é mais a fonte única). Isso é de propósito -- se o Pi cair no meio de
 // um teste em escala menor (sala), o fallback local usa a ÚLTIMA escala
 // confirmada em vez de voltar pro padrão de fábrica sem avisar ninguém.
-float DISTANCIA_VERDE_M = 100.0;
-float DISTANCIA_AMARELO_M = 50.0;
+float DISTANCIA_VERDE_M = 10.0;
+float DISTANCIA_AMARELO_M = 5.0;
 
 const unsigned long BLINK_INTERVALO_MS = 500;
 const unsigned long BEEP_ESPACADO_INTERVALO_MS = 5000;
