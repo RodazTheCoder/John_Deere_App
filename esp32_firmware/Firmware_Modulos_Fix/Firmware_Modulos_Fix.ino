@@ -98,7 +98,7 @@
   #include <WiFi.h>
   #include <WebServer.h>
 
-  const char* AP_SENHA = "cristake2b"; // >= 8 caracteres, exigido pelo SoftAP
+  const char* AP_SENHA = "astra12345678"; // >= 8 caracteres, exigido pelo SoftAP
 
   WebServer servidorStatus(80);
 #endif
