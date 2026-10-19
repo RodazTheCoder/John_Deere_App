@@ -73,6 +73,10 @@
   char corAlertaPi[12] = "";
   bool piscandoAlertaPi = false;
   char somAlertaPi[12] = "";
+  // "Modo demo" ligado no dashboard -- repassado por LoRa (ver
+  // transmitirPosicao()/processarPacoteRecebido()) pra tag de pessoa também
+  // mostrar a cor do demo, em vez de continuar com a distância real dela.
+  bool modoDemoAtivoPi = false;
   portMUX_TYPE alertaPiMux = portMUX_INITIALIZER_UNLOCKED;
 
   // O hotspot do Pi às vezes recusa a primeira tentativa de associação (bug
@@ -83,7 +87,31 @@
   // assíncrono, então isso não trava o LED/buzzer enquanto tenta.
   const unsigned long INTERVALO_RETRY_WIFI_MS = 10000;
   unsigned long ultimaTentativaWiFi = 0;
+#else
+  // Nó sem Pi (tag de pessoa, ou outro trator sem Raspberry) -- precisa
+  // funcionar INDEPENDENTE do trator/Pi, porque o ponto todo é a pessoa
+  // poder ficar longe dele com segurança. Em vez de entrar na rede do Pi
+  // (que exigiria estar perto), este nó cria a PRÓPRIA rede WiFi (ponto de
+  // acesso) só pra servir uma página de status local -- um "mini-dashboard"
+  // sem câmera, com o mesmo dado que já decide o LED/buzzer físico (ver
+  // paginaStatus() mais abaixo). Continua ouvindo LoRa normalmente.
+  #include <WiFi.h>
+  #include <WebServer.h>
+
+  const char* AP_SENHA = "cristake2b"; // >= 8 caracteres, exigido pelo SoftAP
+
+  WebServer servidorStatus(80);
 #endif
+
+// Protege a leitura/escrita das variáveis que a página HTML mostra
+// (distância, limiares, demo) entre o core 0 (servidorStatus, só existe no
+// !TRATOR_COM_PI) e o core 1 (loop()/processarPacoteRecebido(), onde elas
+// são calculadas) -- mesmo motivo do alertaPiMux acima. Declarado sem
+// depender do #if pra poder usar os mesmos portENTER/EXIT_CRITICAL em
+// processarPacoteRecebido() nos dois builds, sem duplicar código; no build
+// do trator (TRATOR_COM_PI=1) fica só alguns bytes sem uso, nada é lido daqui
+// por outro núcleo nesse caso.
+portMUX_TYPE estadoWebMux = portMUX_INITIALIZER_UNLOCKED;
 
 // =====================================================================================
 
@@ -149,6 +177,186 @@ const unsigned long BEEP_ESPACADO_DURACAO_MS = 150;
 unsigned long ultimoToggleLed = 0;
 bool ledVermelhoAceso = false;
 float distanciaMaisRecenteM = -1; // -1 = nenhum dado recebido ainda (fica tudo apagado)
+// -1 = direção desconhecida (sem fix de GPS dos dois lados -- só RSSI, que
+// não informa ângulo nenhum). Usado na rosa dos ventos da página de status
+// (ver paginaDados()/"/dados" mais abaixo) -- mesmo campo que já ia pro Pi
+// em enviarEntidadeProPi(), só que agora também guardado localmente.
+float anguloMaisRecenteDeg = -1;
+
+// "Modo demo" recebido do trator por LoRa -- disponível em QUALQUER nó
+// (inclusive sem WiFi), ao contrário de modoDemoAtivoPi (que só existe no
+// TRATOR_COM_PI, lido direto do Pi). O loop() principal decide a cada
+// volta se usa isto ou a distância real. Sem timeout de segurança, se o
+// trator sumisse (desligou, saiu de alcance) o LED ficaria preso na última
+// cor do demo pra sempre.
+char corDemoRemoto[12] = "";
+bool modoDemoRemotoAtivo = false;
+unsigned long ultimoModoDemoRecebido = 0;
+const unsigned long DEMO_REMOTO_TIMEOUT_MS = 5000;
+
+#if !TRATOR_COM_PI
+extern String meuId; // declarado mais abaixo no arquivo, usado aqui no título da página
+
+// Página HTML simples (sem CSS/JS externo -- o AP deste nó não tem internet
+// nenhuma, nada que não esteja embutido aqui carrega). Atualiza sozinha a
+// cada 2s (meta refresh) em vez de JS, pra funcionar até em navegador bem
+// simples. Mostra a MESMA decisão que já acende o LED físico (ver loop()) --
+// duplicada aqui de propósito simples (ler variável, não pino), mas se
+// mudar a lógica de prioridade demo-vs-real num lugar, mudar no outro também.
+void paginaStatus() {
+  String tipoMaiusculo = String(TIPO_ENTIDADE);
+  tipoMaiusculo.toUpperCase();
+
+  String html = "<!DOCTYPE html><html><head><meta charset='utf-8'>";
+  html += "<meta name='viewport' content='width=device-width, initial-scale=1'>";
+  html += "<title>" TIPO_ENTIDADE "</title><style>";
+  html += ":root{--g:#367C2B;--gd:#285C20;--y:#FFDE00;--bg:#11150F;--line:#333C2D;--text:#F1F3EC;--textdim:#A6AE9C}";
+  html += "*{margin:0;padding:0;box-sizing:border-box}";
+  // body em coluna com o header fixo em cima e o <main> ocupando o resto da
+  // tela centralizado (vertical E horizontal) -- "tudo centralizado" pedido.
+  html += "body{background:var(--bg);color:var(--text);font-family:-apple-system,Helvetica,Arial,sans-serif;";
+  html += "text-align:center;display:flex;flex-direction:column;min-height:100vh}";
+  html += "header{background:linear-gradient(180deg,var(--g),var(--gd));border-bottom:4px solid var(--y);padding:14px;flex-shrink:0}";
+  html += "header h1{font-size:1.15rem;letter-spacing:.05em}";
+  html += "header .id{font-size:.85rem;color:#dfe8d8;opacity:.85;font-family:ui-monospace,Menlo,monospace;margin-top:2px}";
+  html += "main{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px;padding:28px 20px}";
+  // Rosa dos ventos -- mesmo visual do dashboard do Pi (ver radar.css),
+  // só que calculado em JS puro aqui (sem framework nenhum).
+  html += ".radar{position:relative;width:260px;height:260px;border-radius:50%;";
+  html += "background:radial-gradient(circle at 50% 50%,#142012 0%,#0B120A 100%);border:2px solid var(--g);";
+  html += "box-shadow:0 0 0 1px var(--line),0 0 22px rgba(54,124,43,.25)}";
+  html += ".ring{position:absolute;border:1px solid var(--line);border-radius:50%}";
+  html += ".r1{inset:0}.r2{inset:19%}.r3{inset:38%}";
+  html += ".cl{position:absolute;font-family:ui-monospace,Menlo,monospace;font-size:10.5px;color:var(--textdim);letter-spacing:.05em}";
+  html += ".cl-n{top:4px;left:50%;transform:translateX(-50%)}.cl-s{bottom:4px;left:50%;transform:translateX(-50%)}";
+  html += ".cl-e{right:6px;top:50%;transform:translateY(-50%)}.cl-w{left:6px;top:50%;transform:translateY(-50%)}";
+  html += ".eu{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:24px;height:24px;border-radius:6px;";
+  html += "background:var(--y);color:#11150F;display:flex;align-items:center;justify-content:center;font-size:12px;";
+  html += "z-index:3;border:2px solid var(--g)}";
+  html += ".blip{position:absolute;width:18px;height:18px;margin-left:-9px;margin-top:-9px;border-radius:50%;";
+  html += "display:flex;align-items:center;justify-content:center;font-size:10px;z-index:2;transition:left .3s,top .3s;";
+  html += "background:#5FC04A;color:#062412;box-shadow:0 0 0 3px rgba(95,192,74,.25)}";
+  html += ".dist{font-family:ui-monospace,Menlo,monospace;font-size:2.8rem;font-weight:700;color:var(--y);min-height:1.2em}";
+  html += ".sub{color:var(--textdim);font-size:.9rem}";
+  // Semáforo -- mesmo visual do dashboard do Pi (ver semaforo.css): 3 níveis
+  // empilhados, só o nível atual fica "aceso".
+  html += ".sem{display:flex;flex-direction:column;gap:10px;width:260px;text-align:left}";
+  html += ".sem-row{display:flex;align-items:center;gap:14px;padding:12px 16px;border-radius:7px;background:#1A2017;";
+  html += "border:1px solid var(--line);border-left-width:5px;opacity:.4;transition:opacity .2s,background .2s,border-color .2s}";
+  html += ".sem-row.g{border-left-color:#5FC04A}.sem-row.a{border-left-color:#FFDE00}.sem-row.r{border-left-color:#FF5C4D}";
+  html += ".sem-row.active{opacity:1}";
+  html += ".sem-row.active.g{background:#1E3A19;border-color:rgba(95,192,74,.5)}";
+  html += ".sem-row.active.a{background:#403A00;border-color:rgba(255,222,0,.5)}";
+  html += ".sem-row.active.r{background:#3D1712;border-color:rgba(255,92,77,.55)}";
+  html += ".sem-led{width:16px;height:16px;border-radius:50%;flex-shrink:0}";
+  html += ".sem-led.g{background:#5FC04A}.sem-led.a{background:#FFDE00}.sem-led.r{background:#FF5C4D}";
+  html += ".sem-row.active .sem-led.g{box-shadow:0 0 10px rgba(95,192,74,.8)}";
+  html += ".sem-row.active .sem-led.a{box-shadow:0 0 10px rgba(255,222,0,.8)}";
+  html += ".sem-row.active .sem-led.r{box-shadow:0 0 10px rgba(255,92,77,.85)}";
+  html += ".sem-row.active.r .sem-led.blink{animation:blink .85s step-start infinite}";
+  html += "@keyframes blink{50%{opacity:.15}}";
+  html += ".sem-text{font-size:1.05rem;font-weight:600}";
+  html += "</style></head><body>";
+  html += "<header><h1>MÓDULO DE " + tipoMaiusculo + "</h1><div class='id'>id: " + meuId + "</div></header>";
+  html += "<main>";
+  html += "<div class='radar' id='radar'>";
+  html += "<div class='ring r1'></div><div class='ring r2'></div><div class='ring r3'></div>";
+  html += "<span class='cl cl-n'>FRENTE</span><span class='cl cl-s'>TRÁS</span>";
+  html += "<span class='cl cl-e'>DIR</span><span class='cl cl-w'>ESQ</span>";
+  html += "<div class='eu'>&#9650;</div>";
+  html += "<div class='blip' id='blip' style='display:none'>&#9632;</div>";
+  html += "</div>";
+  html += "<div class='sem'>";
+  html += "<div class='sem-row g' id='rowG'><span class='sem-led g'></span><span class='sem-text'>Seguro</span></div>";
+  html += "<div class='sem-row a' id='rowA'><span class='sem-led a'></span><span class='sem-text'>Atenção</span></div>";
+  html += "<div class='sem-row r' id='rowR'><span class='sem-led r' id='ledR'></span><span class='sem-text'>Crítico</span></div>";
+  html += "</div>";
+  html += "<div class='dist' id='dist'></div>";
+  html += "<div class='sub' id='limiares'></div>";
+  html += "</main><script>";
+  html += "const RANGE_MIN_M=20;"; // raio minimo do radar, pra nao ficar tudo colado no centro com escala pequena (testes indoor)
+  html += "const rowG=document.getElementById('rowG'),rowA=document.getElementById('rowA'),rowR=document.getElementById('rowR'),ledR=document.getElementById('ledR');";
+  html += "async function atualizar(){try{";
+  html += "const r=await fetch('/dados');const d=await r.json();";
+  html += "[rowG,rowA,rowR].forEach(x=>x.classList.remove('active'));ledR.classList.remove('blink');";
+  html += "if(d.cor==='#5FC04A')rowG.classList.add('active');";
+  html += "else if(d.cor==='#FFDE00')rowA.classList.add('active');";
+  html += "else if(d.cor==='#FF5C4D'){rowR.classList.add('active');ledR.classList.add('blink');}";
+  html += "document.getElementById('dist').textContent=(d.distancia_m>=0)?(d.distancia_m.toFixed(1)+' m'):'';";
+  html += "document.getElementById('limiares').textContent='verde >'+d.verde_m+'m, amarelo >'+d.amarelo_m+'m';";
+  html += "const blip=document.getElementById('blip');";
+  html += "if(d.distancia_m<0){blip.style.display='none';}else{";
+  html += "blip.style.display='';blip.style.background=d.cor;";
+  html += "const range=Math.max(d.verde_m*2, RANGE_MIN_M);";
+  html += "const frac=Math.min(d.distancia_m/range,1)*0.85;"; // 0.85 pra nao encostar na borda
+  html += "const ang=(d.angulo_deg>=0?d.angulo_deg:0)-90;const rad=ang*Math.PI/180;";
+  html += "blip.style.left=(50+50*frac*Math.cos(rad))+'%';";
+  html += "blip.style.top=(50+50*frac*Math.sin(rad))+'%';";
+  html += "}";
+  html += "}catch(e){}}";
+  html += "atualizar();setInterval(atualizar,1000);";
+  html += "</script></body></html>";
+
+  servidorStatus.send(200, "text/html; charset=utf-8", html);
+}
+
+// JSON pequeno, montado à mão (sem biblioteca -- os únicos valores
+// "textuais" aqui vêm de um conjunto fixo controlado por este mesmo
+// firmware, nunca de fora, então não precisa de escape). Mostra a MESMA
+// decisão que já acende o LED físico (ver loop()) -- duplicada aqui de
+// propósito simples (ler variável, não pino), mas se mudar a lógica de
+// prioridade demo-vs-real num lugar, mudar no outro também.
+void paginaDados() {
+  portENTER_CRITICAL(&estadoWebMux);
+  float distanciaLocal = distanciaMaisRecenteM;
+  float anguloLocal = anguloMaisRecenteDeg;
+  float verdeLocal = DISTANCIA_VERDE_M;
+  float amareloLocal = DISTANCIA_AMARELO_M;
+  bool demoValidoLocal = modoDemoRemotoAtivo && (millis() - ultimoModoDemoRecebido < DEMO_REMOTO_TIMEOUT_MS);
+  String corDemoLocal = String(corDemoRemoto);
+  portEXIT_CRITICAL(&estadoWebMux);
+
+  String corHex, texto;
+  if (demoValidoLocal) {
+    corHex = corDemoLocal == "verde" ? "#5FC04A" : corDemoLocal == "amarelo" ? "#FFDE00" : corDemoLocal == "vermelho" ? "#FF5C4D" : "#555555";
+    texto = "Modo demo (controlado pelo dashboard do trator)";
+  } else if (distanciaLocal < 0) {
+    corHex = "#555555";
+    texto = "Sem dado recebido ainda";
+  } else if (distanciaLocal > verdeLocal) {
+    corHex = "#5FC04A";
+    texto = "Seguro";
+  } else if (distanciaLocal > amareloLocal) {
+    corHex = "#FFDE00";
+    texto = "Atenção";
+  } else {
+    corHex = "#FF5C4D";
+    texto = "ALERTA DE PROXIMIDADE";
+  }
+
+  String json = "{";
+  json += "\"cor\":\"" + corHex + "\",";
+  json += "\"texto\":\"" + texto + "\",";
+  json += "\"distancia_m\":" + String(demoValidoLocal ? -1.0f : distanciaLocal, 1) + ",";
+  json += "\"angulo_deg\":" + String(demoValidoLocal ? -1.0f : anguloLocal, 1) + ",";
+  json += "\"verde_m\":" + String(verdeLocal, 0) + ",";
+  json += "\"amarelo_m\":" + String(amareloLocal, 0) + ",";
+  json += "\"demo\":" + String(demoValidoLocal ? "true" : "false");
+  json += "}";
+
+  servidorStatus.send(200, "application/json; charset=utf-8", json);
+}
+
+// Core 0, igual a tarefaConsultaAlertaPi do trator -- handleClient() roda
+// aqui pra nunca competir com o loop() (core 1), que precisa ficar livre pra
+// LoRa.parsePacket() com a maior frequência possível.
+void tarefaServidorStatus(void *parametro) {
+  for (;;) {
+    servidorStatus.handleClient();
+    vTaskDelay(pdMS_TO_TICKS(20));
+  }
+}
+#endif
 
 unsigned long ultimoEnvio = 0;
 const unsigned long INTERVALO_JANELA_MS = 3000;
@@ -222,6 +430,20 @@ void setup() {
   // LoRa sem ser interrompido pela espera bloqueante do HTTPClient. Ver
   // comentário grande em cima de consultarAlertaPi().
   xTaskCreatePinnedToCore(tarefaConsultaAlertaPi, "consultaAlertaPi", 8192, NULL, 1, NULL, 0);
+#else
+  // Ponto de acesso PRÓPRIO -- independente do Pi/trator de propósito (ver
+  // comentário grande lá em cima, perto do #include <WebServer.h>). Nome
+  // inclui o ID pra distinguir se tiver mais de uma tag por perto.
+  String apSsid = String("Tag-") + TIPO_ENTIDADE + "-" + meuId;
+  WiFi.softAP(apSsid.c_str(), AP_SENHA);
+  Serial.print("--AP proprio criado: "); Serial.print(apSsid);
+  Serial.print(" | IP: "); Serial.println(WiFi.softAPIP());
+  servidorStatus.on("/", paginaStatus);
+  servidorStatus.on("/dados", paginaDados);
+  servidorStatus.begin();
+  // Core 0 -- mesmo motivo do trator: handleClient() não pode competir com
+  // o loop() (core 1) pela escuta do LoRa.
+  xTaskCreatePinnedToCore(tarefaServidorStatus, "servidorStatus", 8192, NULL, 1, NULL, 0);
 #endif
 }
 
@@ -265,6 +487,40 @@ void atualizarAlertaFisico(float distanciaM) {
   }
 }
 
+// Aciona o LED/buzzer com uma cor/som já decididos por outro lugar -- usada
+// pelo trator com o alerta que veio do Pi (câmera + LoRa cruzados, pode
+// mostrar "confirmado" sólido de verdade) E por QUALQUER nó (inclusive a tag
+// de pessoa, sem WiFi) quando recebe um "modo demo" ativo via LoRa do
+// trator -- ver processarPacoteRecebido(). Por isso fica fora do
+// TRATOR_COM_PI: é só manipulação de pino, não depende de WiFi/HTTP.
+void atualizarAlertaFisicoComPi(const String& cor, bool piscando, const String& som) {
+  digitalWrite(LED_VERDE_PIN, cor == "verde" ? HIGH : LOW);
+  digitalWrite(LED_AMARELO_PIN, cor == "amarelo" ? HIGH : LOW);
+
+  if (cor == "vermelho") {
+    if (piscando) {
+      if (millis() - ultimoToggleLed > BLINK_INTERVALO_MS) {
+        ledVermelhoAceso = !ledVermelhoAceso;
+        ultimoToggleLed = millis();
+      }
+      digitalWrite(LED_VERMELHO_PIN, ledVermelhoAceso ? HIGH : LOW);
+    } else {
+      digitalWrite(LED_VERMELHO_PIN, HIGH); // confirmado -- sólido, só o Pi consegue saber disso
+    }
+  } else {
+    digitalWrite(LED_VERMELHO_PIN, LOW);
+  }
+
+  if (som == "espacado") {
+    bool tocando = (millis() % BEEP_ESPACADO_INTERVALO_MS) < BEEP_ESPACADO_DURACAO_MS;
+    digitalWrite(BUZZER_PIN, tocando ? HIGH : LOW);
+  } else if (som == "continuo" || som == "urgente") {
+    digitalWrite(BUZZER_PIN, HIGH); // "urgente" (caso MÁXIMO) tratado igual a contínuo por simplicidade
+  } else {
+    digitalWrite(BUZZER_PIN, LOW); // "off"
+  }
+}
+
 #if TRATOR_COM_PI
 // Busca no Pi o alerta já cruzado (câmera + LoRa). Formato da resposta:
 // "cor,piscando,som" em texto simples (ex: "vermelho,0,continuo") -- sem
@@ -288,19 +544,21 @@ void consultarAlertaPi() {
   http.setTimeout(800);
   int codigo = http.GET();
   if (codigo == 200) {
-    // formato: cor,piscando,som,verde_m,amarelo_m
+    // formato: cor,piscando,som,verde_m,amarelo_m,modo_demo
     String resposta = http.getString();
     int p1 = resposta.indexOf(',');
     int p2 = resposta.indexOf(',', p1 + 1);
     int p3 = resposta.indexOf(',', p2 + 1);
     int p4 = resposta.indexOf(',', p3 + 1);
-    if (p1 > 0 && p2 > p1 && p3 > p2 && p4 > p3) {
+    int p5 = resposta.indexOf(',', p4 + 1);
+    if (p1 > 0 && p2 > p1 && p3 > p2 && p4 > p3 && p5 > p4) {
       String cor = resposta.substring(0, p1);
       bool piscando = resposta.substring(p1 + 1, p2).toInt() == 1;
       String som = resposta.substring(p2 + 1, p3);
       som.trim();
       float verdeM = resposta.substring(p3 + 1, p4).toFloat();
-      float amareloM = resposta.substring(p4 + 1).toFloat();
+      float amareloM = resposta.substring(p4 + 1, p5).toFloat();
+      bool modoDemo = resposta.substring(p5 + 1).toInt() == 1;
 
       // Seção crítica bem curta -- só cópia de bytes, sem alocação nem
       // I/O -- pra não travar o outro núcleo por muito tempo.
@@ -310,6 +568,7 @@ void consultarAlertaPi() {
       piscandoAlertaPi = piscando;
       strncpy(somAlertaPi, som.c_str(), sizeof(somAlertaPi) - 1);
       somAlertaPi[sizeof(somAlertaPi) - 1] = '\0';
+      modoDemoAtivoPi = modoDemo;
       // Atualiza o cache da escala do fallback local -- ver comentário
       // acima de DISTANCIA_VERDE_M. Só muda quando o Pi confirma de verdade.
       DISTANCIA_VERDE_M = verdeM;
@@ -338,37 +597,6 @@ void tarefaConsultaAlertaPi(void *parametro) {
   for (;;) {
     consultarAlertaPi();
     vTaskDelay(pdMS_TO_TICKS(INTERVALO_CONSULTA_ALERTA_MS));
-  }
-}
-
-// Aciona o LED/buzzer com o alerta que já veio cruzado do Pi (câmera + LoRa)
-// -- ao contrário de atualizarAlertaFisico(), aqui dá pra mostrar "confirmado"
-// (sólido) de verdade, porque o Pi já sabe o que a câmera viu.
-void atualizarAlertaFisicoComPi(const String& cor, bool piscando, const String& som) {
-  digitalWrite(LED_VERDE_PIN, cor == "verde" ? HIGH : LOW);
-  digitalWrite(LED_AMARELO_PIN, cor == "amarelo" ? HIGH : LOW);
-
-  if (cor == "vermelho") {
-    if (piscando) {
-      if (millis() - ultimoToggleLed > BLINK_INTERVALO_MS) {
-        ledVermelhoAceso = !ledVermelhoAceso;
-        ultimoToggleLed = millis();
-      }
-      digitalWrite(LED_VERMELHO_PIN, ledVermelhoAceso ? HIGH : LOW);
-    } else {
-      digitalWrite(LED_VERMELHO_PIN, HIGH); // confirmado -- sólido, só o Pi consegue saber disso
-    }
-  } else {
-    digitalWrite(LED_VERMELHO_PIN, LOW);
-  }
-
-  if (som == "espacado") {
-    bool tocando = (millis() % BEEP_ESPACADO_INTERVALO_MS) < BEEP_ESPACADO_DURACAO_MS;
-    digitalWrite(BUZZER_PIN, tocando ? HIGH : LOW);
-  } else if (som == "continuo" || som == "urgente") {
-    digitalWrite(BUZZER_PIN, HIGH); // "urgente" (caso MÁXIMO) tratado igual a contínuo por simplicidade
-  } else {
-    digitalWrite(BUZZER_PIN, LOW); // "off"
   }
 }
 #endif
@@ -518,6 +746,35 @@ void transmitirPosicao(double lat, double lon, float alt, float vel, float curso
   LoRa.print(vel, 1);
   LoRa.print(",");
   LoRa.print(curso, 1);
+  LoRa.print(",");
+  // Limiar atual deste nó (verde/amarelo) vai junto em todo pacote -- é
+  // assim que o limiar configurado no dashboard do Pi chega nos nós sem
+  // WiFi (a tag de pessoa, outros tratores sem Pi). Só o nó "trator" (o que
+  // tem Pi) é tratado como fonte confiável por quem recebe -- ver
+  // processarPacoteRecebido(). Os outros também mandam o próprio valor
+  // (pra não deixar o campo vazio), mas ele é ignorado por quem recebe.
+  LoRa.print(DISTANCIA_VERDE_M, 1);
+  LoRa.print(",");
+  LoRa.print(DISTANCIA_AMARELO_M, 1);
+  LoRa.print(",");
+  // "Modo demo" + a cor atual, só de verdade no nó "trator" (o único que
+  // sabe disso, via consultarAlertaPi()) -- é assim que a tag de pessoa
+  // (sem WiFi) também mostra a cor do demo em vez da distância real dela
+  // enquanto o demo estiver ligado no dashboard. Ver
+  // processarPacoteRecebido(). Os outros nós mandam "0," (sem efeito).
+#if TRATOR_COM_PI
+  portENTER_CRITICAL(&alertaPiMux);
+  bool modoDemoLocal = modoDemoAtivoPi;
+  char corLocalParaEnvio[12];
+  strncpy(corLocalParaEnvio, corAlertaPi, sizeof(corLocalParaEnvio));
+  portEXIT_CRITICAL(&alertaPiMux);
+  LoRa.print(modoDemoLocal ? 1 : 0);
+  LoRa.print(",");
+  LoRa.print(corLocalParaEnvio);
+#else
+  LoRa.print(0);
+  LoRa.print(",");
+#endif
   LoRa.endPacket();
 }
 
@@ -527,15 +784,19 @@ void processarPacoteRecebido(double minhaLat, double minhaLon, bool meuGpsValido
     mensagem += (char)LoRa.read();
   }
 
-  // formato: id,tipo,lat,lon,alt,vel,curso
+  // formato: id,tipo,lat,lon,alt,vel,curso,verde_m,amarelo_m,modo_demo,cor_demo
   int p1 = mensagem.indexOf(',');
   int p2 = mensagem.indexOf(',', p1 + 1);
   int p3 = mensagem.indexOf(',', p2 + 1);
   int p4 = mensagem.indexOf(',', p3 + 1);
   int p5 = mensagem.indexOf(',', p4 + 1);
   int p6 = mensagem.indexOf(',', p5 + 1);
+  int p7 = mensagem.indexOf(',', p6 + 1);
+  int p8 = mensagem.indexOf(',', p7 + 1);
+  int p9 = mensagem.indexOf(',', p8 + 1);
+  int p10 = mensagem.indexOf(',', p9 + 1);
 
-  if (p1 < 0 || p2 < 0 || p3 < 0 || p4 < 0 || p5 < 0 || p6 < 0) {
+  if (p1 < 0 || p2 < 0 || p3 < 0 || p4 < 0 || p5 < 0 || p6 < 0 || p7 < 0 || p8 < 0 || p9 < 0 || p10 < 0) {
     Serial.print("Pacote LoRa com formato inesperado, ignorado. Conteudo cru: '");
     Serial.print(mensagem);
     Serial.println("'");
@@ -550,8 +811,49 @@ void processarPacoteRecebido(double minhaLat, double minhaLon, bool meuGpsValido
   double lonRecebida = mensagem.substring(p3 + 1, p4).toDouble();
   float altRecebida = mensagem.substring(p4 + 1, p5).toFloat();
   float velRecebida = mensagem.substring(p5 + 1, p6).toFloat();
-  float cursoRecebido = mensagem.substring(p6 + 1).toFloat();
+  float cursoRecebido = mensagem.substring(p6 + 1, p7).toFloat();
+  float verdeRecebido = mensagem.substring(p7 + 1, p8).toFloat();
+  float amareloRecebido = mensagem.substring(p8 + 1, p9).toFloat();
+  bool modoDemoRecebido = mensagem.substring(p9 + 1, p10).toInt() == 1;
   (void)altRecebida; (void)velRecebida; (void)cursoRecebido; // ainda não usados no cálculo, mantidos pro log/uso futuro
+
+  // Propaga o limiar pela rede LoRa -- só o "trator" é tratado como fonte
+  // confiável (é o único tipo de nó que fala com o Pi nesse projeto hoje).
+  // Isso é como a tag de pessoa, sem WiFi nenhum, fica sabendo do limiar
+  // configurado no dashboard. Nunca sobrescreve com zero/negativo (pacote
+  // corrompido ou nó que nunca recebeu nada do Pi ainda).
+  if (tipoRecebido == "trator" && verdeRecebido > 0 && amareloRecebido > 0) {
+    portENTER_CRITICAL(&estadoWebMux);
+    DISTANCIA_VERDE_M = verdeRecebido;
+    DISTANCIA_AMARELO_M = amareloRecebido;
+    portEXIT_CRITICAL(&estadoWebMux);
+  }
+
+  // Modo demo ligado/desligado no dashboard, repassado pelo trator -- só
+  // GUARDA o estado aqui (quem decide se usa isso ou a distância real é o
+  // loop() principal, toda volta -- ver DEMO_REMOTO_TIMEOUT_MS). Não dá
+  // "return" aqui de propósito: o resto da função (cálculo de distância
+  // real) continua rodando normalmente mesmo com o demo ligado, só o LED
+  // final que é decidido em loop().
+  if (tipoRecebido == "trator") {
+    if (modoDemoRecebido) {
+      String corDemoRecebida = mensagem.substring(p10 + 1);
+      corDemoRecebida.trim();
+      if (corDemoRecebida.length() > 0) {
+        portENTER_CRITICAL(&estadoWebMux);
+        strncpy(corDemoRemoto, corDemoRecebida.c_str(), sizeof(corDemoRemoto) - 1);
+        corDemoRemoto[sizeof(corDemoRemoto) - 1] = '\0';
+        modoDemoRemotoAtivo = true;
+        ultimoModoDemoRecebido = millis();
+        portEXIT_CRITICAL(&estadoWebMux);
+      }
+    } else {
+      // Desligou o demo no dashboard -- some na hora, não espera o timeout.
+      portENTER_CRITICAL(&estadoWebMux);
+      modoDemoRemotoAtivo = false;
+      portEXIT_CRITICAL(&estadoWebMux);
+    }
+  }
 
   int rssi = LoRa.packetRssi();
   float snr = LoRa.packetSnr();
@@ -578,7 +880,10 @@ void processarPacoteRecebido(double minhaLat, double minhaLon, bool meuGpsValido
     Serial.println("Sem fix de GPS dos dois lados -- so RSSI disponivel, sem angulo.");
   }
 
+  portENTER_CRITICAL(&estadoWebMux);
   distanciaMaisRecenteM = distanciaFinal;
+  anguloMaisRecenteDeg = anguloAteONo;
+  portEXIT_CRITICAL(&estadoWebMux);
   Serial.println(distanciaFinal > DISTANCIA_VERDE_M ? "Local seguro (fallback fisico)"
     : distanciaFinal > DISTANCIA_AMARELO_M ? "Atencao (fallback fisico)"
     : "ALERTA DE PROXIMIDADE (fallback fisico)");
@@ -626,7 +931,12 @@ void loop() {
     atualizarAlertaFisico(distanciaMaisRecenteM); // Pi não respondeu a tempo -- cai pro modo local sozinho
   }
 #else
-  atualizarAlertaFisico(distanciaMaisRecenteM);
+  bool demoRemotoValido = modoDemoRemotoAtivo && (millis() - ultimoModoDemoRecebido < DEMO_REMOTO_TIMEOUT_MS);
+  if (demoRemotoValido) {
+    atualizarAlertaFisicoComPi(String(corDemoRemoto), true, "off");
+  } else {
+    atualizarAlertaFisico(distanciaMaisRecenteM);
+  }
 #endif
 
   while (gpsSerial.available() > 0) {
