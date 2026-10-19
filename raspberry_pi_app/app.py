@@ -129,15 +129,20 @@ def alerta_fisico():
     ESP32 do trator conseguir fazer o LED/buzzer físico refletir a lógica
     cruzada (câmera + LoRa) sem precisar de biblioteca de JSON no firmware.
 
-    Formato: "cor,piscando,som,verde_m,amarelo_m" -- ex:
-    "vermelho,0,continuo,20.0,10.0".
+    Formato: "cor,piscando,som,verde_m,amarelo_m,modo_demo" -- ex:
+    "vermelho,0,continuo,20.0,10.0,0".
 
-    Os dois últimos campos (a escala atual, ver /api/escala) são pro ESP32
-    guardar como cache -- se o Pi cair, o fallback local (só distância, ver
-    atualizarAlertaFisico() no firmware) passa a usar a ÚLTIMA escala
-    confirmada em vez do padrão de fábrica (100m). Sem isso, um teste em
-    escala menor (sala) "voltaria" pra 100m de repente se a rede oscilasse
-    no pior momento possível.
+    Os campos de escala (ver /api/escala) são pro ESP32 guardar como cache --
+    se o Pi cair, o fallback local (só distância, ver atualizarAlertaFisico()
+    no firmware) passa a usar a ÚLTIMA escala confirmada em vez do padrão de
+    fábrica (100m). Sem isso, um teste em escala menor (sala) "voltaria" pra
+    100m de repente se a rede oscilasse no pior momento possível.
+
+    O último campo (modo_demo, 0/1) é pro trator repassar por LoRa pros nós
+    sem WiFi (a tag de pessoa) -- sem isso, ligar "modo demo" no dashboard só
+    muda o LED do trator (ele é o único que fala com o Pi), e a tag continua
+    mostrando a distância real dela, parecendo "fora de sincronia". Ver
+    processarPacoteRecebido() no firmware.
 
     Se o ESP32 não conseguir consultar isso (Pi caiu, sem WiFi, câmera
     travada, etc.), ele cai sozinho pro fallback local. O LED nunca fica
@@ -145,7 +150,11 @@ def alerta_fisico():
     """
     _, _, _, alerta, escala_verde, escala_amarelo = _alerta_atual()
     piscando = 1 if alerta["led"]["piscando"] else 0
-    corpo = f"{alerta['led']['cor']},{piscando},{alerta['som']['estado']},{escala_verde},{escala_amarelo}"
+    modo_demo = 1 if estado.modo_demo() else 0
+    corpo = (
+        f"{alerta['led']['cor']},{piscando},{alerta['som']['estado']},"
+        f"{escala_verde},{escala_amarelo},{modo_demo}"
+    )
     return Response(corpo, mimetype="text/plain")
 
 
