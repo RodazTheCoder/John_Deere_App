@@ -12,7 +12,7 @@ Bookworm já vem com `NetworkManager`, que tem um comando pronto pra criar hotsp
 sudo nmcli device wifi hotspot ifname wlan0 ssid "JohnDeere-Trator" password "escolher-uma-senha"
 ```
 
-Isso já sobe o AP com DHCP incluído. Por padrão o Pi assume o IP `10.42.0.1` nessa rede (não `192.168.4.1` como no exemplo do firmware — **checar o IP real depois de rodar o comando** com `ip addr show wlan0`, e ajustar `PI_URL` no firmware do ESP32 — `esp32_firmware/ProjetoLoRa1/ProjetoLoRa1.ino` — de acordo).
+Isso já sobe o AP com DHCP incluído. Por padrão o Pi assume o IP `10.42.0.1` nessa rede (não `192.168.4.1` como no exemplo do firmware — **checar o IP real depois de rodar o comando** com `ip addr show wlan0`, e ajustar `PI_URL` no firmware do ESP32 — `esp32_firmware/Firmware_Modulos_Jitter/Firmware_Modulos_Jitter.ino` — de acordo).
 
 Pra deixar o hotspot subindo sozinho no boot:
 ```bash
@@ -26,7 +26,7 @@ Se o Pi ainda estiver numa versão anterior ao Bookworm (sem NetworkManager por 
 ## Depois de configurar
 
 1. Anotar o SSID, senha e o IP do Pi na rede criada.
-2. Atualizar `WIFI_SSID`, `WIFI_SENHA` e `PI_URL` em `esp32_firmware/ProjetoLoRa1/ProjetoLoRa1.ino` (só no ESP32 com `TRATOR_COM_PI` habilitado).
+2. Atualizar `WIFI_SSID`, `WIFI_SENHA` e `PI_URL` em `esp32_firmware/Firmware_Modulos_Jitter/Firmware_Modulos_Jitter.ino` (só no ESP32 com `TRATOR_COM_PI` habilitado).
 3. Testar com `curl` de outro dispositivo conectado na rede do Pi, simulando o que o ESP32 vai mandar:
    ```bash
    curl -X POST http://<IP-do-Pi>:5050/api/entidade \

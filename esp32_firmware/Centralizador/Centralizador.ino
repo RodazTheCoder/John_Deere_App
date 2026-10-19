@@ -1,10 +1,10 @@
 // ESP32 centralizador: so escuta LoRa e repassa cada pacote cru pela serial USB
 // para o centralizador_de_dados/app.py. Nao transmite, nao usa GPS, WiFi nem LED.
 //
-// Formato do pacote (mesmo de ProjetoLoRa1.ino): id,tipo,lat,lon,alt,vel,curso
+// Formato do pacote (mesmo de Firmware_Modulos_Jitter.ino): id,tipo,lat,lon,alt,vel,curso
 //
 // ATENCAO: os parametros de radio abaixo DEVEM ser iguais aos de
-// ../ProjetoLoRa1/ProjetoLoRa1.ino (frequencia, sync word, SF, BW, CR, CRC).
+// ../Firmware_Modulos_Jitter/Firmware_Modulos_Jitter.ino (frequencia, sync word, SF, BW, CR, CRC).
 // Se divergirem, os modulos deixam de se ouvir sem nenhum erro visivel.
 
 #include <SPI.h>

@@ -161,7 +161,7 @@ def alerta_fisico():
 @app.route("/api/entidade", methods=["POST"])
 def entidade():
     """Recebido do ESP32 do trator via WiFi — ver comunicacao/entidade_receiver.py
-    e esp32_firmware/ProjetoLoRa1/ProjetoLoRa1.ino (enviarEntidadeProPi)."""
+    e esp32_firmware/Firmware_Modulos_Jitter/Firmware_Modulos_Jitter.ino (enviarEntidadeProPi)."""
     payload = request.get_json(silent=True)
     ok, erro = processar_entidade(payload, estado)
     if not ok:

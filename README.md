@@ -85,8 +85,9 @@ raspberry_pi_app/
 │   └── js/                   Scripts por área, carregados em ordem (ver dashboard.html)
 └── tests/                    36 testes automatizados, sem depender de hardware
 
-esp32_firmware/ProjetoLoRa1/  Firmware único (GPS + LoRa + WiFi opcional)
-esp32_firmware/Centralizador/ Firmware do ESP32 centralizador (só recebe LoRa e repassa pela serial)
+esp32_firmware/Firmware_Modulos_Jitter/  Firmware único (GPS + LoRa + WiFi opcional) -- versão em uso
+esp32_firmware/Firmware_Modulos_Fix/     Mesmo firmware + seletor de estado fixo do LoRa (debug)
+esp32_firmware/Centralizador/            Firmware do ESP32 centralizador (só recebe LoRa e repassa pela serial)
 centralizador_de_dados/       App Flask do mapa geral (lê a serial do centralizador, porta 5001)
 yolov8n_ncnn_model/           Modelo exportado (YOLOv8n → NCNN, imgsz=320 fixo)
 docs/configurar_pi_como_ap.md Guia de configuração do hotspot do Pi
@@ -101,7 +102,7 @@ docs/configurar_pi_como_ap.md Guia de configuração do hotspot do Pi
 - `POST /api/escala` — reconfigura os limiares em tempo real
 - `POST /api/modo-demo` / `POST /api/silenciar` — controles do dashboard
 
-## Firmware ESP32 (`esp32_firmware/ProjetoLoRa1/`)
+## Firmware ESP32 (`esp32_firmware/Firmware_Modulos_Jitter/`)
 
 O mesmo código roda em todo ESP32 do projeto — o que muda por unidade é só:
 
@@ -114,6 +115,8 @@ Cada nó lê sua posição por GPS, transmite por LoRa periodicamente, e calcula
 
 **Valores que exigem calibração de campo real** (não indoor a curta distância — RSSI não é confiável nessa faixa): `LORA_RSSI_1M` e `EXPOENTE_PERDA_AMBIENTE`.
 
+`esp32_firmware/Firmware_Modulos_Fix/` é o mesmo firmware mais um seletor de estado fixo do rádio (`perma_state_Lora`: `0` normal, `1` só transmite, `2` só recebe), útil pra isolar TX/RX na hora de debugar — não usar os modos `1`/`2` em uso normal (quebram a propagação de limiar/modo demo entre os nós e não escalam bem com mais de 2 módulos transmitindo ao mesmo tempo).
+
 ---
 
 ## Centralizador de dados (mapa geral)
@@ -124,7 +127,7 @@ Um ESP32 dedicado, no centro da área (a "base"), só **escuta** o LoRa de todos
 módulos LoRa ──► ESP32 centralizador ──USB (9600)──► centralizador_de_dados/app.py ──► mapa (:5001)
 ```
 
-- **Firmware:** `esp32_firmware/Centralizador/Centralizador.ino`. Os parâmetros de rádio (915 MHz, sync `0x34`, SF9, 125 kHz, CR 4/8, CRC) **precisam ser iguais** aos de `ProjetoLoRa1.ino`, senão os módulos param de se ouvir sem nenhum erro visível.
+- **Firmware:** `esp32_firmware/Centralizador/Centralizador.ino`. Os parâmetros de rádio (915 MHz, sync `0x34`, SF9, 125 kHz, CR 4/8, CRC) **precisam ser iguais** aos de `Firmware_Modulos_Jitter.ino`, senão os módulos param de se ouvir sem nenhum erro visível.
 - **App:** guarda cada veículo e os últimos 120 pontos do trajeto. Aceita o pacote CSV `id,tipo,lat,lon,alt,vel,curso` (o mesmo do LoRa) ou JSON. Um veículo sem pacote há mais de 15 s aparece em cinza.
 - **Rotas:** `GET /` (mapa), `GET /api/veiculos`, `GET /api/health` (porta serial, últimos pacotes).
 - **Mapa:** o Leaflet vem junto do repositório (`static/leaflet/`); só as imagens de fundo precisam de internet. Sem internet os pontos aparecem sobre fundo cinza.
@@ -143,7 +146,7 @@ CENTRALIZADOR_PORT=/dev/cu.usbserial-XXXX python -m centralizador_de_dados.app  
 python -m pytest centralizador_de_dados/tests
 ```
 
-**Problemas comuns:** `PermissionError` ou porta ocupada, feche o Serial Monitor do Arduino e qualquer outro programa que use a porta; mapa vazio, confira o sketch gravado (`Centralizador`, não `ProjetoLoRa1`) e a porta em `/api/health`.
+**Problemas comuns:** `PermissionError` ou porta ocupada, feche o Serial Monitor do Arduino e qualquer outro programa que use a porta; mapa vazio, confira o sketch gravado (`Centralizador`, não `Firmware_Modulos_Jitter`) e a porta em `/api/health`.
 
 ## Setup local (Mac, Linux ou Windows)
 
@@ -173,6 +176,6 @@ python -m pytest tests/ -v
 
 **Gravar o firmware num ESP32** (via `arduino-cli`):
 ```bash
-arduino-cli compile --fqbn esp32:esp32:esp32 esp32_firmware/ProjetoLoRa1
-arduino-cli upload -p <porta> --fqbn esp32:esp32:esp32 esp32_firmware/ProjetoLoRa1
+arduino-cli compile --fqbn esp32:esp32:esp32 esp32_firmware/Firmware_Modulos_Jitter
+arduino-cli upload -p <porta> --fqbn esp32:esp32:esp32 esp32_firmware/Firmware_Modulos_Jitter
 ```

@@ -47,7 +47,7 @@ MODELO_PATH = os.path.join(RAIZ_PROJETO, "yolov8n_ncnn_model")
 
 # ---- ESP32 / LoRa ----
 # O ESP32 do trator manda os dados por WiFi (POST /api/entidade), não por
-# cabo serial — ver esp32_firmware/ProjetoLoRa1/ e comunicacao/entidade_receiver.py.
+# cabo serial — ver esp32_firmware/Firmware_Modulos_Jitter/ e comunicacao/entidade_receiver.py.
 # Não há nada a configurar aqui do lado do Pi: o SSID/senha da rede ficam no
 # firmware do ESP32, e o Pi só precisa estar rodando como Access Point (ver
 # docs/configurar_pi_como_ap.md).
