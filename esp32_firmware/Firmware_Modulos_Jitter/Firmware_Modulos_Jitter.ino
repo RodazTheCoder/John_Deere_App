@@ -41,8 +41,7 @@
   #include <HTTPClient.h>
 
   // Rede criada pelo próprio Raspberry Pi (é ele que sobe o ponto de acesso —
-  // no meio do mato não tem roteador nenhum pra conectar os dois). Ver
-  // docs/configurar_pi_como_ap.md.
+  // no meio do mato não tem roteador nenhum pra conectar os dois).
   const char* WIFI_SSID = "JohnDeere-Trator";
   const char* WIFI_SENHA = "12345678";
   const char* PI_URL = "http://10.42.0.1:5050/api/entidade"; // IP do hotspot criado pelo nmcli no Pi (trixie)

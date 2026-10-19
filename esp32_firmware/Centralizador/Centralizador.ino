@@ -1,5 +1,5 @@
 // ESP32 centralizador: so escuta LoRa e repassa cada pacote cru pela serial USB
-// para o centralizador_de_dados/app.py. Nao transmite, nao usa GPS, WiFi nem LED.
+// para o centralizador_app/app.py. Nao transmite, nao usa GPS, WiFi nem LED.
 //
 // Formato do pacote (mesmo de Firmware_Modulos_Jitter.ino): id,tipo,lat,lon,alt,vel,curso
 //
@@ -14,7 +14,7 @@
 #define RST 21
 #define DIO0 4
 
-#define SERIAL_BAUD 9600 // mesmo valor de CENTRALIZADOR_BAUD em centralizador_de_dados/app.py
+#define SERIAL_BAUD 9600 // mesmo valor de CENTRALIZADOR_BAUD em centralizador_app/app.py
 
 void setup() {
   Serial.begin(SERIAL_BAUD);

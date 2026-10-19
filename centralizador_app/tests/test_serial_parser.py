@@ -1,4 +1,4 @@
-from centralizador_de_dados.app import descobrir_porta_serial, fechar_serial, linha_serial_deve_ser_ignorada, parse_payload
+from centralizador_app.app import descobrir_porta_serial, fechar_serial, linha_serial_deve_ser_ignorada, parse_payload
 
 
 def test_parse_json_payload():
@@ -26,13 +26,13 @@ def test_linha_serial_deve_ser_ignorada_para_diagnostico_gps():
 
 
 def test_descobrir_porta_serial_fallback_para_porta_disponivel(monkeypatch):
-    monkeypatch.setattr("centralizador_de_dados.app.serial", object())
-    monkeypatch.setattr("centralizador_de_dados.app.os.getenv", lambda key, default=None: default)
+    monkeypatch.setattr("centralizador_app.app.serial", object())
+    monkeypatch.setattr("centralizador_app.app.os.getenv", lambda key, default=None: default)
 
     def fake_portas():
         return ["COM5", "COM3"]
 
-    monkeypatch.setattr("centralizador_de_dados.app.listar_portas_disponiveis", lambda: fake_portas())
+    monkeypatch.setattr("centralizador_app.app.listar_portas_disponiveis", lambda: fake_portas())
     assert descobrir_porta_serial() == "COM5"
 
 
@@ -45,7 +45,7 @@ def test_fechar_serial_zera_handle(monkeypatch):
             self.closed = True
 
     fake_porta = FakePorta()
-    monkeypatch.setattr("centralizador_de_dados.app.SERIAL_HANDLE", fake_porta)
+    monkeypatch.setattr("centralizador_app.app.SERIAL_HANDLE", fake_porta)
     fechar_serial()
     assert fake_porta.closed is True
-    assert __import__("centralizador_de_dados.app", fromlist=["SERIAL_HANDLE"]).SERIAL_HANDLE is None
+    assert __import__("centralizador_app.app", fromlist=["SERIAL_HANDLE"]).SERIAL_HANDLE is None
