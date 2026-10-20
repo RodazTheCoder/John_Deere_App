@@ -1,6 +1,13 @@
 // Direcao, lista de entidades, linha de contexto e pontos do radar
 // Direção só aparece quando vem de GPS: sem GPS (só RSSI) o ângulo não existe.
 function esc(t){ return String(t).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+// tipo cru ("trator"/"carro"/qualquer outra coisa) -> classe CSS + rótulo +
+// ícone, num lugar só -- usado na lista, no contexto e no radar.
+const TIPO_INFO = {
+  trator: { classe: 'tractor', rotulo: 'Trator', icone: '▣' },
+  carro:  { classe: 'car',     rotulo: 'Carro',  icone: '■' },
+};
+function infoDoTipo(tipo){ return TIPO_INFO[tipo] || { classe: 'person', rotulo: 'Pessoa', icone: '●' }; }
 const DIRECOES = ['à frente','à frente, à direita','à direita','atrás, à direita','atrás','atrás, à esquerda','à esquerda','à frente, à esquerda'];
 function direcaoDe(e){
   if(typeof e.angulo_deg !== 'number') return null;
@@ -22,12 +29,12 @@ function renderListaEntidades(entidades){
     return;
   }
   const html = lista.map(e=>{
-    const trator = e.tipo==='trator';
+    const info = infoDoTipo(e.tipo);
     const dir = e.fonte==='rssi' ? 'sem direção' : (direcaoDe(e) || '');
     const fonte = fonteLabelMap[e.fonte] ? `<span class="fonte ${e.fonte}">${fonteLabelMap[e.fonte]}</span>` : '';
     return `<div class="ent-row ${nivelDaDistancia(e.distancia_m)}">
-      <span class="ent-ico ${trator ? 'tractor' : 'person'}">${trator ? '▣' : '●'}</span>
-      <div class="ent-main">${trator ? 'Trator' : 'Pessoa'}<small>${esc(e.id)}</small>
+      <span class="ent-ico ${info.classe}">${info.icone}</span>
+      <div class="ent-main">${info.rotulo}<small>${esc(e.id)}</small>
         <div class="ent-sub">${esc(dir)} ${fonte}</div></div>
       <div class="ent-dist">${Math.round(e.distancia_m)}<small> m</small></div>
     </div>`;
@@ -39,7 +46,7 @@ function renderListaEntidades(entidades){
 function atualizarContexto(e, total){
   const el = document.getElementById('ctxLine');
   if(!e){ el.textContent = ''; return; }
-  let txt = e.tipo==='trator' ? 'Trator' : 'Pessoa';
+  let txt = infoDoTipo(e.tipo).rotulo;
   if(e.fonte==='rssi') txt += ' · direção indisponível (RSSI)';
   else if(direcaoDe(e)) txt += ' · ' + direcaoDe(e);
   if(total>1) txt += ' · +' + (total-1) + (total-1===1 ? ' outra' : ' outras');
@@ -50,7 +57,6 @@ function atualizarRadar(entidades){
   clearBlips();
   Object.values(entidades||{}).forEach(e=>{
     const distFrac = Math.min(e.distancia_m / RADAR_ALCANCE_M, 1);
-    const tipo = e.tipo==='trator' ? 'tractor' : 'person';
-    radar.appendChild(polarBlip(e.angulo_deg||0, distFrac, tipo, false));
+    radar.appendChild(polarBlip(e.angulo_deg||0, distFrac, infoDoTipo(e.tipo).classe, false));
   });
 }

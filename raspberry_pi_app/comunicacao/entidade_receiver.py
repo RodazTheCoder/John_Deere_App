@@ -13,7 +13,7 @@ distância exibido (RSSI é bem menos preciso que GPS, útil saber qual dos
 dois gerou uma leitura que parece estranha).
 """
 
-TIPOS_VALIDOS = {"pessoa", "trator"}
+TIPOS_VALIDOS = {"pessoa", "trator", "carro"}
 FONTES_VALIDAS = {"gps", "rssi"}
 
 

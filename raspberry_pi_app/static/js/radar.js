@@ -2,6 +2,8 @@
 const radar = document.getElementById('radar');
 const R = 119; // radar radius in px (half of 238)
 
+const BLIP_ICONE = { tractor: '▣', car: '■' }; // qualquer outro tipo (ex: person) cai no ponto cheio
+
 function polarBlip(angleDeg, distFrac, type, pending){
   // angleDeg: 0 = front(top), clockwise
   const rad = (angleDeg - 90) * Math.PI/180;
@@ -9,10 +11,10 @@ function polarBlip(angleDeg, distFrac, type, pending){
   const x = 50 + 50 * r * Math.cos(rad);
   const y = 50 + 50 * r * Math.sin(rad);
   const el = document.createElement('div');
-  el.className = 'blip ' + (type === 'tractor' ? 'tractor' : 'person') + (pending ? ' pending' : '');
+  el.className = 'blip ' + type + (pending ? ' pending' : '');
   el.style.left = x+'%';
   el.style.top = y+'%';
-  el.textContent = type === 'tractor' ? '▣' : '●';
+  el.textContent = BLIP_ICONE[type] || '●';
   return el;
 }
 

@@ -58,6 +58,10 @@
   background:var(--green); color:#062412;
   box-shadow:0 0 0 3px rgba(95,192,74,0.25);
 }
+.blip.car{
+  background:#8AB4D8; color:#06202E;
+  box-shadow:0 0 0 3px rgba(138,180,216,0.25);
+}
 .blip.pending{ animation:blink 1s step-start infinite; }
 @keyframes blink{ 50%{ opacity:.15; } }
 @media (prefers-reduced-motion: reduce){ .blip.pending{animation:none; opacity:.55;} }

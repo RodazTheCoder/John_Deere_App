@@ -20,6 +20,7 @@
 }
 .ent-ico.person{background:var(--deere-yellow); color:#1A2017;}
 .ent-ico.tractor{background:var(--green); color:#062412;}
+.ent-ico.car{background:#8AB4D8; color:#06202E;}
 .ent-main{flex:1; min-width:0; font-family:var(--sans); font-size:13px; font-weight:600; color:var(--text);}
 .ent-main small{font-family:var(--mono); font-size:10.5px; font-weight:400; color:var(--text-faint); margin-left:6px;}
 .ent-sub{font-family:var(--mono); font-size:10.5px; font-weight:400; color:var(--text-dim); margin-top:2px; display:flex; align-items:center; gap:6px; flex-wrap:wrap;}
