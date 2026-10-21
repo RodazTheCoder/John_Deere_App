@@ -166,8 +166,8 @@ float distanciaRSSISuavizada = -1;
 // não é mais a fonte única). Isso é de propósito -- se o Pi cair no meio de
 // um teste em escala menor (sala), o fallback local usa a ÚLTIMA escala
 // confirmada em vez de voltar pro padrão de fábrica sem avisar ninguém.
-float DISTANCIA_VERDE_M = 15.0;
-float DISTANCIA_AMARELO_M = 10.0;
+float DISTANCIA_VERDE_M = 5.0;
+float DISTANCIA_AMARELO_M = 2.5;
 
 const unsigned long BLINK_INTERVALO_MS = 500;
 const unsigned long BEEP_ESPACADO_INTERVALO_MS = 5000;
@@ -595,7 +595,7 @@ void consultarAlertaPi() {
 void tarefaConsultaAlertaPi(void *parametro) {
   for (;;) {
     consultarAlertaPi();
-    vTaskDelay(pdMS_TO_TICKS(INTERVALO_CONSULTA_ALERTA_MS));
+    vTask(pdMS_TO_TICKS(INTERVALO_CONSULTA_ALERTA_MS));
   }
 }
 #endif
@@ -621,10 +621,6 @@ void conectarWiFi() {
   WiFi.begin(WIFI_SSID, WIFI_SENHA);
   Serial.print("Conectando no WiFi do Pi");
   unsigned long inicio = millis();
-  while (WiFi.status() != WL_CONNECTED && millis() - inicio < 15000) {
-    delay(300);
-    Serial.print(".");
-  }
   Serial.println(WiFi.status() == WL_CONNECTED ? "\nWiFi conectado" : "\nWiFi FALHOU -- tenta de novo sozinho depois");
 }
 
