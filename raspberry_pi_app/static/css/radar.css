@@ -1,4 +1,15 @@
 /* Rosa dos ventos e pontos do radar */
+.radar-zoom{
+  display:flex; align-items:center; gap:8px;
+  padding:0 2px 6px;
+  font-family:var(--mono); font-size:10.5px; color:var(--text-dim);
+}
+.radar-zoom input[type="range"]{
+  flex:1; accent-color:var(--deere-green); cursor:pointer;
+}
+.radar-zoom-valor{
+  min-width:44px; text-align:right; color:var(--deere-yellow); font-weight:600;
+}
 /* Radar */
 .radar-wrap{
   display:flex; align-items:center; justify-content:center;

@@ -21,3 +21,18 @@ function polarBlip(angleDeg, distFrac, type, pending){
 function clearBlips(){
   radar.querySelectorAll('.blip').forEach(b=>b.remove());
 }
+
+// Zoom manual do radar -- em espaço reduzido (indoor), 160m deixa tudo
+// grudado no centro e não dá pra ver movimento nenhum. O slider muda
+// RADAR_ALCANCE_M (declarado "let" em semaforo.js) e redesenha na hora,
+// sem esperar o próximo poll (~1s depois já viria certo de qualquer jeito,
+// mas fica mais responsivo redesenhando já).
+const radarZoomSlider = document.getElementById('radarZoomSlider');
+const radarZoomValor = document.getElementById('radarZoomValor');
+if(radarZoomSlider){
+  radarZoomSlider.addEventListener('input', ()=>{
+    RADAR_ALCANCE_M = Number(radarZoomSlider.value);
+    radarZoomValor.textContent = RADAR_ALCANCE_M + ' m';
+    atualizarRadar(ultimasEntidadesRadar);
+  });
+}

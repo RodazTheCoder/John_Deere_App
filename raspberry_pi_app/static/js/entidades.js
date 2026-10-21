@@ -53,9 +53,11 @@ function atualizarContexto(e, total){
   el.textContent = txt;
 }
 
+let ultimasEntidadesRadar = {}; // cache só pra redesenhar na hora quando o zoom do slider muda (ver radar.js)
 function atualizarRadar(entidades){
+  ultimasEntidadesRadar = entidades || {};
   clearBlips();
-  Object.values(entidades||{}).forEach(e=>{
+  Object.values(ultimasEntidadesRadar).forEach(e=>{
     const distFrac = Math.min(e.distancia_m / RADAR_ALCANCE_M, 1);
     radar.appendChild(polarBlip(e.angulo_deg||0, distFrac, infoDoTipo(e.tipo).classe, false));
   });

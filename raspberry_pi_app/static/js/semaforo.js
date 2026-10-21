@@ -1,6 +1,6 @@
 // Constantes de status e atualizacao do semaforo de risco
 // ---------- STATUS REAL ----------
-const RADAR_ALCANCE_M = 160; // escala visual do radar — ajustar quando soubermos o alcance real do LoRa
+let RADAR_ALCANCE_M = 160; // escala visual do radar -- "let" de propósito, dá pra mudar pelo slider (ver painel_radar.html/radar.js)
 const severityMap = { seguro:'g', atencao:'a', critico_pendente:'r', critico_confirmado:'r', nao_identificado:'r', camera_offline:'n' };
 const rTextSubMap = {
   seguro: '> 100 m', atencao: '50 – 100 m',
