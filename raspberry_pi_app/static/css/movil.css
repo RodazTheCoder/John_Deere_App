@@ -104,9 +104,16 @@
 
   .side .pb-radar{
     flex:1 1 0; min-height:0; padding:8px 14px 2px;
-    display:flex; container-type:size;
+    display:flex; flex-direction:column; container-type:size;
   }
   .pb-radar .panel-title{display:none;}
+  /* zoom vira uma faixa fina em cima do radar (não do lado) -- sem isso,
+     como .pb-radar é flex-row por padrão, o slider espremia o radar na
+     horizontal em vez de ficar empilhado. */
+  .pb-radar .radar-zoom{
+    flex:0 0 auto; padding:0 4px 6px; font-size:9.5px; gap:6px;
+  }
+  .pb-radar .radar-zoom-valor{min-width:34px;}
   .pb-radar .radar-wrap{flex:1; min-height:0; padding:0;}
   .radar{width:min(72vw, 30vh, 320px); height:min(72vw, 30vh, 320px);}
   @supports (width:1cqw){
@@ -202,4 +209,34 @@
   #demoBotoes{flex-direction:column; align-items:stretch !important;}
   #demoBotoes > span{display:none;}
   #demoBotoes .demo-btn{text-align:left;}
+}
+
+/* Celular na horizontal: o zoom vira uma barra vertical do lado esquerdo do
+   radar (em vez de empilhado em cima, como no retrato) -- sobra mais altura
+   pro radar, que é o que importa quando a tela é curta. */
+@media (max-height:520px) and (orientation:landscape){
+  .side .pb-radar{
+    flex-direction:row; align-items:stretch; gap:0; padding:8px 10px 2px 6px;
+  }
+  .pb-radar .radar-zoom{
+    flex:0 0 auto; flex-direction:column; justify-content:center; align-items:center;
+    width:26px; padding:8px 7px 8px 0; margin-right:8px; gap:5px; font-size:9px;
+    border-right:1px solid var(--line);
+  }
+  .pb-radar .radar-zoom > span:first-child{
+    writing-mode:vertical-rl; transform:rotate(180deg); letter-spacing:.06em; text-align:center;
+  }
+  .pb-radar .radar-zoom-track{
+    flex:1; min-height:0; width:100%;
+    display:flex; justify-content:center;
+  }
+  .pb-radar .radar-zoom-track input[type="range"]{
+    writing-mode:vertical-lr; direction:rtl; -webkit-appearance:slider-vertical;
+    width:8px; height:100%;
+    accent-color:var(--deere-green); cursor:pointer;
+  }
+  .pb-radar .radar-zoom-valor{
+    writing-mode:vertical-rl; min-width:auto; text-align:center;
+  }
+  .pb-radar .radar-wrap{flex:1; min-height:0; padding:0;}
 }
