@@ -595,7 +595,7 @@ void consultarAlertaPi() {
 void tarefaConsultaAlertaPi(void *parametro) {
   for (;;) {
     consultarAlertaPi();
-    vTask(pdMS_TO_TICKS(INTERVALO_CONSULTA_ALERTA_MS));
+    vTaskDelay(pdMS_TO_TICKS(INTERVALO_CONSULTA_ALERTA_MS));
   }
 }
 #endif
