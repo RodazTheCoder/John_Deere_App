@@ -185,9 +185,9 @@ float anguloMaisRecenteDeg = -1;
 // "Modo demo" recebido do trator por LoRa -- disponível em QUALQUER nó
 // (inclusive sem WiFi), ao contrário de modoDemoAtivoPi (que só existe no
 // TRATOR_COM_PI, lido direto do Pi). O loop() principal decide a cada
-// volta se usa isto ou a distância real. Sem timeout de segurança, se o
-// trator sumisse (desligou, saiu de alcance) o LED ficaria preso na última
-// cor do demo pra sempre.
+// volta se usa isto ou a distância real -- ver atualizarLedComOuSemDemo().
+// Sem timeout de segurança, se o trator sumisse (desligou, saiu de alcance)
+// o LED ficaria preso na última cor do demo pra sempre.
 char corDemoRemoto[12] = "";
 bool modoDemoRemotoAtivo = false;
 unsigned long ultimoModoDemoRecebido = 0;
@@ -196,12 +196,12 @@ const unsigned long DEMO_REMOTO_TIMEOUT_MS = 5000;
 #if !TRATOR_COM_PI
 extern String meuId; // declarado mais abaixo no arquivo, usado aqui no título da página
 
-// Página HTML simples (sem CSS/JS externo -- o AP deste nó não tem internet
-// nenhuma, nada que não esteja embutido aqui carrega). Atualiza sozinha a
-// cada 2s (meta refresh) em vez de JS, pra funcionar até em navegador bem
-// simples. Mostra a MESMA decisão que já acende o LED físico (ver loop()) --
-// duplicada aqui de propósito simples (ler variável, não pino), mas se
-// mudar a lógica de prioridade demo-vs-real num lugar, mudar no outro também.
+// Casca HTML+CSS+JS no mesmo estilo visual do dashboard do Pi (verde/amarelo
+// John Deere, fundo escuro) -- servida UMA vez só; depois disso o JS busca
+// /dados (JSON pequeno) a cada 1s e só atualiza a bolinha/texto, sem recarregar
+// a página inteira (sem piscar, bem mais parecido com o Pi de verdade). Sem
+// fonte/biblioteca externa nenhuma -- este AP não tem internet, nada que não
+// esteja aqui dentro carrega.
 void paginaStatus() {
   String tipoMaiusculo = String(TIPO_ENTIDADE);
   tipoMaiusculo.toUpperCase();
@@ -621,6 +621,10 @@ void conectarWiFi() {
   WiFi.begin(WIFI_SSID, WIFI_SENHA);
   Serial.print("Conectando no WiFi do Pi");
   unsigned long inicio = millis();
+  while (WiFi.status() != WL_CONNECTED && millis() - inicio < 15000) {
+    delay(300);
+    Serial.print(".");
+  }
   Serial.println(WiFi.status() == WL_CONNECTED ? "\nWiFi conectado" : "\nWiFi FALHOU -- tenta de novo sozinho depois");
 }
 
